@@ -1,0 +1,12 @@
+{
+  "generated_at": "2026-09-16T00:36:15Z",
+  "nonempty_edge_count": 2601,
+  "mutual_edge_count": 2565,
+  "oneway_edge_count": 36,
+  "both_add_pair_count": 2340,
+  "friend_add_planned": 2376,
+  "remark_write_planned": 2601,
+  "owner_count": 140,
+  "max_edges": null,
+  "edges_path": "/www/wwwroot/99chat-server/scripts/push-friends-to-im/state/push_remarks_edges.jsonl"
+}

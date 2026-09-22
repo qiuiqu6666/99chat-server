@@ -1,0 +1,704 @@
+spring:
+  application:
+    name: 99chat-server
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:chat99}?sslMode=${DB_SSL_MODE:REQUIRED}&serverTimezone=UTC&allowPublicKeyRetrieval=false&characterEncoding=UTF-8&useUnicode=true&connectionCollation=utf8mb4_general_ci
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:none}
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:127.0.0.1:9092}
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:}
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      enable-auto-commit: false
+      max-poll-records: 500
+      auto-offset-reset: earliest
+
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:105MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:110MB}
+
+  mvc:
+    async:
+      # SSE / 流式代理（/sangong/** 等）不受 MVC 异步超时限制
+      request-timeout: ${MVC_ASYNC_REQUEST_TIMEOUT_MS:-1}
+
+server:
+  port: 8081
+  compression:
+    enabled: false
+
+chat99:
+  scheduling:
+    # 调度总开关；仅模拟启动 / 旁路验证时设 CHAT99_SCHEDULING_ENABLED=false
+    enabled: ${CHAT99_SCHEDULING_ENABLED:true}
+  friend:
+    # GET /me/friends/{peer}/relation 短缓存（秒）；好友增删会 evict
+    relation-cache-ttl-seconds: ${FRIEND_RELATION_CACHE_TTL_SECONDS:15}
+  admin-api:
+    enabled: true
+    cors-origins: ${ADMIN_API_CORS_ORIGINS:https://99admin.9999chat.top}
+    jwt-expire-seconds: ${ADMIN_API_JWT_EXPIRE_SECONDS:86400}
+    jwt-secret: ${ADMIN_JWT_SECRET_FALLBACK:}
+    online-threshold-minutes: 5
+  im:
+    user-sig-expire-seconds: 7776000
+    rest-admin-account: ${IM_ADMIN:administrator}
+    rest-base-url: ${IM_REST_BASE_URL:https://adminapisgp.im.qcloud.com/v4/}
+    role-cache-enabled: ${IM_ROLE_CACHE_ENABLED:true}
+    role-cache-ttl-seconds: ${IM_ROLE_CACHE_TTL_SECONDS:60}
+    rest-queue:
+      enabled: ${IM_REST_QUEUE_ENABLED:true}
+      topic: ${IM_REST_QUEUE_TOPIC:chat99.im.rest.jobs}
+      topic-dlq: ${IM_REST_QUEUE_TOPIC_DLQ:chat99.im.rest.jobs.dlq}
+      consumer-group: ${IM_REST_QUEUE_CONSUMER_GROUP:chat99-im-rest-worker}
+      concurrency: ${IM_REST_QUEUE_CONCURRENCY:1}
+      dedupe-ttl-seconds: ${IM_REST_QUEUE_DEDUPE_TTL_SECONDS:10}
+      breaker-cooldown-seconds: ${IM_REST_QUEUE_BREAKER_COOLDOWN_SECONDS:10}
+      max-attempts: ${IM_REST_QUEUE_MAX_ATTEMPTS:8}
+      local-auth-im-fallback: ${IM_REST_QUEUE_LOCAL_AUTH_IM_FALLBACK:false}
+      enqueue-role-refresh-on-auth: ${IM_REST_QUEUE_ENQUEUE_ROLE_REFRESH:false}
+      rate-limit-per-second:
+        get-role-in-group: ${IM_REST_RL_GET_ROLE:80}
+        get-group-info: ${IM_REST_RL_GET_GROUP_INFO:80}
+        get-joined-group-list: ${IM_REST_RL_GET_JOINED:50}
+        get-group-member-info: ${IM_REST_RL_GET_MEMBER_INFO:80}
+    callback:
+      enabled: true
+      callback-token: ${IM_CALLBACK_TOKEN:}
+      allowed-sdk-app-ids: ""
+      chat-push-enabled: true
+      chat-push-skip-when-online: false
+      skip-sender-ids: administrator
+      max-group-members-per-push: 0
+      dedup-ttl-hours: 48
+      group-push-agg-seconds-small: 10
+      group-push-agg-seconds-medium: 30
+      group-push-agg-seconds-large: 60
+      group-push-small-group-threshold: 200
+      group-push-large-group-threshold: 2000
+      group-member-cache-ttl-minutes: 10
+      group-push-flush-batch-size: 300
+      group-push-flush-interval-ms: 2000
+      group-monitor-enabled: ${IM_GROUP_MONITOR_ENABLED:false}
+      group-monitor-url: ${IM_GROUP_MONITOR_URL:}
+      group-monitor-token: ${IM_GROUP_MONITOR_TOKEN:}
+      group-monitor-group-id: ${IM_GROUP_MONITOR_GROUP_ID:}
+    # 钱包 IM 卡片：默认只记日志不拒发（空订单/重放不再拦截进会话）
+    wallet-card-guard:
+      enabled: ${IM_WALLET_CARD_GUARD_ENABLED:true}
+      enforce: ${IM_WALLET_CARD_GUARD_ENFORCE:false}
+      log-only: ${IM_WALLET_CARD_GUARD_LOG_ONLY:true}
+      dedupe-ttl-days: ${IM_WALLET_CARD_GUARD_DEDUPE_TTL_DAYS:90}
+      allow-sender-ids:
+        - administrator
+  integration:
+    api-token: ${INTEGRATION_API_TOKEN:}
+  life-payment:
+    enabled: ${LIFE_PAYMENT_ENABLED:true}
+    query-expire-minutes: ${LIFE_PAYMENT_QUERY_EXPIRE_MINUTES:10}
+    task-heartbeat-timeout-seconds: ${LIFE_PAYMENT_TASK_HEARTBEAT_TIMEOUT_SECONDS:60}
+    max-attempts: ${LIFE_PAYMENT_MAX_ATTEMPTS:3}
+    recover-scan-interval-ms: ${LIFE_PAYMENT_RECOVER_SCAN_INTERVAL_MS:15000}
+    worker-token: ${LIFE_PAYMENT_WORKER_TOKEN:}
+    order-update-notify-enabled: ${LIFE_PAYMENT_ORDER_UPDATE_NOTIFY_ENABLED:true}
+    # 大猿人话费/电费上游（开启后 mobile 充值与 electric 缴费不再派 Worker）
+    yuanren:
+      enabled: ${LIFE_PAYMENT_YUANREN_ENABLED:false}
+      base-url: ${LIFE_PAYMENT_YUANREN_BASE_URL:}
+      userid: ${LIFE_PAYMENT_YUANREN_USERID:}
+      apikey: ${LIFE_PAYMENT_YUANREN_APIKEY:}
+      notify-url: ${LIFE_PAYMENT_YUANREN_NOTIFY_URL:}
+      connect-timeout-ms: ${LIFE_PAYMENT_YUANREN_CONNECT_TIMEOUT_MS:10000}
+      read-timeout-ms: ${LIFE_PAYMENT_YUANREN_READ_TIMEOUT_MS:30000}
+      # 面额(元)=product_id，如 50:1001,100:1002（也可用 YAML map）
+      mobile-product-ids: {}
+      electric-product-id: ${LIFE_PAYMENT_YUANREN_ELECTRIC_PRODUCT_ID:}
+      electric-product-ids: {}
+      poll-enabled: ${LIFE_PAYMENT_YUANREN_POLL_ENABLED:true}
+      poll-interval-ms: ${LIFE_PAYMENT_YUANREN_POLL_INTERVAL_MS:60000}
+      poll-batch-size: ${LIFE_PAYMENT_YUANREN_POLL_BATCH_SIZE:30}
+  message-archive:
+    enabled: ${MSG_ARCHIVE_ENABLED:false}
+    # 消费/DLQ/回填/建表/对账/滞后监控。切到独立节点后主服设 false，保留 producer + GET 历史/快照
+    worker-enabled: ${MSG_ARCHIVE_WORKER_ENABLED:true}
+    webhook-producer-timeout-ms: 500
+    history-rate-limit-per-second: 10
+    consumer:
+      archive-enabled: ${MSG_ARCHIVE_WORKER_ENABLED:true}
+      # 推送在 IM webhook 内同步执行；Kafka 仅负责归档，避免等待 consumer 延迟
+      push-enabled: ${MSG_ARCHIVE_PUSH_ENABLED:false}
+      batch-size: 500
+      max-retries: 3
+      archive-concurrency: 4
+      push-concurrency: 4
+    write-datasource:
+      url: ${MSG_ARCHIVE_WRITE_JDBC_URL:}
+      username: ${MSG_ARCHIVE_WRITE_DB_USER:}
+      password: ${MSG_ARCHIVE_WRITE_DB_PASS:}
+      maximum-pool-size: 10
+    read-datasource:
+      url: ${MSG_ARCHIVE_READ_JDBC_URL:}
+      username: ${MSG_ARCHIVE_READ_DB_USER:}
+      password: ${MSG_ARCHIVE_READ_DB_PASS:}
+      maximum-pool-size: 15
+    kafka:
+      topic-after-send: chat99.im.after-send
+      topic-dlq: chat99.im.archive.dlq
+      topic-push-dlq: chat99.im.push.dlq
+      topic-group-recall: chat99.im.group-recall
+      archive-consumer-group: chat99-im-archive-writer
+      push-consumer-group: chat99-im-push-dispatcher
+    lag-monitor-interval-ms: 60000
+    snapshot:
+      recent-days: 7
+      default-limit-conv: 20
+      max-limit-conv: 50
+      # 新设备分路冷启动：limitC2c + limitGroup（未传则走旧混合 limitConv）
+      default-limit-c2c: 40
+      default-limit-group: 40
+      max-limit-c2c: 50
+      max-limit-group: 50
+      default-limit-msg: 40
+      min-limit-msg: 30
+      max-limit-msg: 50
+      timeout-ms: 3000
+      rate-limit-per-second: 2
+      candidate-oversample: 3
+      # recent | hybrid | legacy — hybrid: 投影为空时回退月表聚合
+      projection-mode: ${MSG_ARCHIVE_SNAPSHOT_PROJECTION_MODE:hybrid}
+    msg-id-backfill:
+      enabled: ${MSG_ARCHIVE_MSG_ID_BACKFILL_ENABLED:false}
+      batch-conversations: ${MSG_ARCHIVE_MSG_ID_BACKFILL_BATCH:20}
+      batch-groups: ${MSG_ARCHIVE_MSG_ID_BACKFILL_BATCH_GROUPS:10}
+      sleep-ms: ${MSG_ARCHIVE_MSG_ID_BACKFILL_SLEEP_MS:200}
+      max-tables-per-run: ${MSG_ARCHIVE_MSG_ID_BACKFILL_MAX_TABLES:3}
+      roam-max-cnt: 100
+      max-pages-per-entity: ${MSG_ARCHIVE_MSG_ID_BACKFILL_MAX_PAGES:20}
+      skip-enabled: ${MSG_ARCHIVE_MSG_ID_BACKFILL_SKIP_ENABLED:true}
+      skip-ttl-days: ${MSG_ARCHIVE_MSG_ID_BACKFILL_SKIP_TTL_DAYS:30}
+      fixed-delay-ms: ${MSG_ARCHIVE_MSG_ID_BACKFILL_DELAY_MS:60000}
+  jwt:
+    expire-seconds: 7776000
+    secret: ${JWT_SECRET_FALLBACK:}
+  sms:
+    smsbao:
+      base-url: https://api.smsbao.com
+      domestic-path: /sms
+      international-path: /wsms
+      sign: ${SMSBAO_SIGN:【海口超聚电子】}
+    node-sms:
+      base-url: ${NODESMS_BASE_URL:https://apij.nodesms.com/sms/batch/send}
+      account: ${NODESMS_ACCOUNT:}
+      password-md5: ${NODESMS_PASSWORD_MD5:}
+      sender-id: ${NODESMS_SENDER_ID:}
+    aliyun-pnvs:
+      sign-name: ${ALIYUN_PNVS_SIGN_NAME:}
+      # 固定号码认证赠送模板 100001（含 ${code}/${min}）；勿改为 SMS_* 短信服务模板
+      template-code: ${ALIYUN_PNVS_TEMPLATE_CODE:100001}
+      scheme-name: ${ALIYUN_PNVS_SCHEME_NAME:}
+      access-key-id: ${ALIYUN_PNVS_ACCESS_KEY_ID:}
+      access-key-secret: ${ALIYUN_PNVS_ACCESS_KEY_SECRET:}
+      template-minutes: 5
+      code-type: 1
+      code-length: 6
+      valid-time-seconds: 300
+      interval-seconds: 60
+    code:
+      length: 6
+      ttl-seconds: 300
+    rate:
+      # 可通过 SMS_PHONE_PER_MINUTE / SMS_PHONE_PER_DAY / SMS_IP_PER_MINUTE 覆盖
+      phone-per-minute: ${SMS_PHONE_PER_MINUTE:5}
+      phone-per-day: ${SMS_PHONE_PER_DAY:50}
+      ip-per-minute: ${SMS_IP_PER_MINUTE:30}
+    device-challenge-max-sends: 5
+    # 万能验证码；生产可设 SMS_MASTER_CODE= 置空关闭
+    master-code: ${SMS_MASTER_CODE:}
+  platform-id:
+    length: 10
+    alphabet: abcdefghijklmnopqrstuvwxyz0123456789
+    max-retry: 5
+  nickname:
+    cooldown-days: 7
+    min-length: 2
+    max-length: 32
+  group-privacy:
+    default-privacy-protection-enabled: true
+  game-privilege:
+    master-enabled: ${GAME_PRIVILEGE_MASTER_ENABLED:true}
+    default-privileged: false
+    group:
+    default-avatar-url: ${GROUP_DEFAULT_AVATAR_URL:https://99chat.oss-cn-hongkong.aliyuncs.com/moren/qun.png}
+    # GET /me/groups：短缓存 + 列表上限（客户端请分页；refresh 仅恢复场景）
+    me-groups-cache-enabled: ${ME_GROUPS_CACHE_ENABLED:true}
+    me-groups-cache-ttl-seconds: ${ME_GROUPS_CACHE_TTL_SECONDS:10}
+    me-groups-max-limit: ${ME_GROUPS_MAX_LIMIT:200}
+    # GET /group/{id}/join-applications：热路径默认不打 IM portrait；短缓存
+    join-apps-im-portrait-enabled: ${JOIN_APPS_IM_PORTRAIT_ENABLED:false}
+    join-apps-cache-enabled: ${JOIN_APPS_CACHE_ENABLED:true}
+    join-apps-cache-ttl-seconds: ${JOIN_APPS_CACHE_TTL_SECONDS:8}
+    # GET /me/group-notices：短缓存；markRead / dismiss / 新通知写入时升版本失效
+    group-notices-cache-enabled: ${GROUP_NOTICES_CACHE_ENABLED:true}
+    group-notices-cache-ttl-seconds: ${GROUP_NOTICES_CACHE_TTL_SECONDS:8}
+    fanout:
+      local-targets-enabled: ${GROUP_FANOUT_LOCAL_TARGETS_ENABLED:true}
+      async-enabled: ${GROUP_FANOUT_ASYNC_ENABLED:true}
+      max-members: ${GROUP_FANOUT_MAX_MEMBERS:20000}
+      sync-threshold: ${GROUP_FANOUT_SYNC_THRESHOLD:200}
+      chunk-size: ${GROUP_FANOUT_CHUNK_SIZE:300}
+      executor-core-pool-size: ${GROUP_FANOUT_EXECUTOR_CORE:2}
+      executor-max-pool-size: ${GROUP_FANOUT_EXECUTOR_MAX:8}
+      executor-queue-capacity: ${GROUP_FANOUT_EXECUTOR_QUEUE:500}
+  group-create-limit:
+    enabled: true
+    max-work-groups: 5 # deprecated: Work 建群数已取消
+    max-community-groups: 3
+    max-join-groups: 10000
+    max-community-join-groups: 1000
+    enforce: true
+    log-only: false
+    use-im-count-fallback: false
+  sticker:
+    oss-prefix: stickers/
+    static-max-bytes: 2097152
+    gif-max-bytes: 5242880
+    video-max-bytes: 52428800
+    thumb-size: 480
+    thumb-jpeg-quality: 95
+    video-output-size: 480
+    video-max-duration-seconds: 10
+    video-max-fps: 20
+    video-conversion-timeout-seconds: 120
+    video-conversion-enabled: true
+    ffmpeg-path: ${FFMPEG_PATH:/www/server/ffmpeg/ffmpeg-6.1/ffmpeg}
+    ffprobe-path: ${FFPROBE_PATH:/www/server/ffmpeg/ffmpeg-6.1/ffprobe}
+    user-upload-pack-id: user_upload
+    user-upload-name: 我的上传
+    user-upload-icon-url: ${STICKER_UPLOAD_ICON_URL:}
+    before-send-enabled: ${STICKER_BEFORE_SEND_ENABLED:true}
+    before-send-enforce: ${STICKER_BEFORE_SEND_ENFORCE:false}
+    before-send-log-only: ${STICKER_BEFORE_SEND_LOG_ONLY:true}
+  presence:
+    heartbeat-throttle-seconds: 30
+    max-batch-size: 200
+  location:
+    # 单用户写入间隔（秒）；默认 3 小时，更频静默丢弃并返回 nextUploadAfterMs
+    min-interval-seconds: ${LOCATION_MIN_INTERVAL_SECONDS:10800}
+    max-accuracy-meters: ${LOCATION_MAX_ACCURACY_METERS:50000}
+    max-future-skew-seconds: ${LOCATION_MAX_FUTURE_SKEW_SECONDS:300}
+    history-retention-days: ${LOCATION_HISTORY_RETENTION_DAYS:30}
+    history-cleanup-cron: ${LOCATION_HISTORY_CLEANUP_CRON:0 40 4 * * *}
+    geocode-enabled: ${LOCATION_GEOCODE_ENABLED:true}
+    # 高德 Web 服务 Key；不配则回退 Nominatim（异步，不阻塞 /me/location）
+    amap-key: ${LOCATION_AMAP_KEY:}
+    geocode-timeout-ms: ${LOCATION_GEOCODE_TIMEOUT_MS:2500}
+  push:
+    enabled: ${PUSH_ENABLED:false}
+    skip-when-online: true
+    apns:
+      enabled: ${PUSH_APNS_ENABLED:false}
+      auth-type: ${PUSH_APNS_AUTH_TYPE:p12}
+      team-id: ${PUSH_APNS_TEAM_ID:}
+      key-id: ${PUSH_APNS_KEY_ID:}
+      bundle-id: ${PUSH_APNS_BUNDLE_ID:vip.99chat.pro}
+      p8-key: ${PUSH_APNS_P8_KEY:}
+      p12-path: ${PUSH_APNS_P12_PATH:/www/wwwroot/99chat-server/apns/tszs.p12}
+      p12-password: ${PUSH_APNS_P12_PASSWORD:}
+      voip-p12-path: ${PUSH_APNS_VOIP_P12_PATH:/www/wwwroot/99chat-server/apns/Volp.p12}
+      voip-p12-password: ${PUSH_APNS_VOIP_P12_PASSWORD:}
+      production: ${PUSH_APNS_PRODUCTION:true}
+      voip-topic-suffix: .voip
+    jpush:
+      enabled: ${PUSH_JPUSH_ENABLED:false}
+      app-key: ${JPUSH_APP_KEY:}
+      master-secret: ${JPUSH_MASTER_SECRET:}
+      app-key-file: ${JPUSH_APP_KEY_FILE:/www/wwwroot/99chat-server/certs/jpush-app-key.txt}
+      master-secret-file: ${JPUSH_MASTER_SECRET_FILE:/www/wwwroot/99chat-server/certs/jpush-master-secret.txt}
+      base-url: ${JPUSH_BASE_URL:https://api.jpush.cn}
+      third-party-enabled: ${PUSH_JPUSH_THIRD_PARTY_ENABLED:true}
+      huawei-distribution: ${PUSH_JPUSH_HUAWEI_DISTRIBUTION:secondary_push}
+      honor-distribution: ${PUSH_JPUSH_HONOR_DISTRIBUTION:secondary_push}
+      oppo-distribution: ${PUSH_JPUSH_OPPO_DISTRIBUTION:secondary_push}
+      vivo-distribution: ${PUSH_JPUSH_VIVO_DISTRIBUTION:secondary_push}
+      xiaomi-distribution: ${PUSH_JPUSH_XIAOMI_DISTRIBUTION:secondary_push}
+      xiaomi-channel-id: ${PUSH_JPUSH_XIAOMI_CHANNEL_ID:}
+  search:
+    # 临时关闭搜人频控；恢复时设 CHAT99_SEARCH_RATE_LIMIT_ENABLED=true 或改回 true
+    rate-limit-enabled: ${CHAT99_SEARCH_RATE_LIMIT_ENABLED:false}
+    miss-window-minutes: 30
+    miss-threshold: 10
+    block-hours: 24
+  contacts:
+    match-rate-limit-per-minute: 20
+  phone-bind:
+    session-ttl-seconds: 600
+  phone-change:
+    session-ttl-seconds: 900
+  favorite:
+    max-upload-bytes: ${FAVORITE_MAX_UPLOAD_BYTES:104857600}
+  chat-attachment:
+    policy-version: 1
+    upload-enabled: ${CHAT_ATTACHMENT_UPLOAD_ENABLED:false}
+    send-enabled: ${CHAT_ATTACHMENT_SEND_ENABLED:false}
+    read-enabled: ${CHAT_ATTACHMENT_READ_ENABLED:true}
+    emergency-disabled: ${CHAT_ATTACHMENT_EMERGENCY_DISABLED:false}
+    routing-threshold-bytes: 104857600
+    native-max-bytes:
+      image: 29360128
+      sound: 29360128
+      video: 104857600
+      file: 104857600
+    max-attachment-bytes: 2147483648
+    user-storage-quota-bytes: 21474836480
+    daily-upload-quota-bytes: 10737418240
+    quota-day-timezone: Asia/Shanghai
+    max-active-uploads-per-user: 3
+    part-size-bytes: 8388608
+    max-parallel-parts-per-upload: 2
+    upload-session-ttl-seconds: 86400
+    upload-part-url-ttl-seconds: 900
+    access-url-ttl-seconds: 900
+    confirmed-retention-days: 30
+    unreferenced-ready-ttl-seconds: 259200
+    reserved-reference-ttl-seconds: 604800
+    delete-grace-seconds: 604800
+    thumbnail-max-bytes: 1048576
+    thumbnail-max-long-edge: 1280
+    part-url-batch-limit: 32
+    supported-platforms:
+      - android
+      - ios
+    min-receiver-version: ${CHAT_ATTACHMENT_MIN_RECEIVER_VERSION:0.0.0}
+    min-receiver-build: ${CHAT_ATTACHMENT_MIN_RECEIVER_BUILD:0}
+    required-protocol-version: 1
+    native-video-message-enabled: ${CHAT_ATTACHMENT_NATIVE_VIDEO_MESSAGE_ENABLED:false}
+    media-public-base-url: ${CHAT_ATTACHMENT_MEDIA_PUBLIC_BASE_URL:https://image.99chat.vip}
+    media-hmac-secret: ${CHAT_ATTACHMENT_MEDIA_HMAC_SECRET:}
+    oss:
+      endpoint: ${CHAT_ATTACHMENT_OSS_ENDPOINT:}
+      bucket: ${CHAT_ATTACHMENT_OSS_BUCKET:}
+      access-key-id: ${CHAT_ATTACHMENT_OSS_ACCESS_KEY_ID:}
+      access-key-secret: ${CHAT_ATTACHMENT_OSS_ACCESS_KEY_SECRET:}
+      cdn-domain: ${CHAT_ATTACHMENT_OSS_CDN_DOMAIN:}
+    gray:
+      send-allow-user-ids: []
+      send-allow-group-ids: []
+      require-peer-capability: ${CHAT_ATTACHMENT_REQUIRE_PEER_CAPABILITY:false}
+    rate-limit:
+      init-per-minute: 10
+      part-urls-per-minute: ${CHAT_ATTACHMENT_PART_URLS_PER_MINUTE:0}
+      status-per-minute: 60
+      complete-per-minute: 20
+      access-per-minute: 60
+    jobs:
+      expire-fixed-delay-ms: 300000
+      cleanup-cron: "0 20 4 * * ?"
+      reconcile-fixed-delay-ms: 600000
+    ffprobe-path: ${FFPROBE_PATH:/www/server/ffmpeg/ffmpeg-6.1/ffprobe}
+    media-probe-timeout-seconds: 10
+  oss:
+    max-upload-bytes: 10485760
+    preview-long-edge: 750
+    thumb-size: 200
+    jpeg-quality: 85
+    group-avatar-prefix: group-avatar/
+  device:
+    trust-mode: SINGLE
+    # 密码登录新设备短信验证；临时关闭设 DEVICE_LOGIN_CHECK_ENABLED=false
+    login-check-enabled: ${DEVICE_LOGIN_CHECK_ENABLED:false}
+    # 与腾讯云 IM 同平台实例上限对齐；超出时撤销该平台最旧 HTTP session
+    max-active-sessions-per-platform: ${DEVICE_MAX_ACTIVE_SESSIONS_PER_PLATFORM:3}
+  defaults:
+    avatar-url: ${DEFAULT_AVATAR_URL:https://99chat.oss-cn-hongkong.aliyuncs.com/moren/default_c2c_head.png}
+  # Web 扫码登录会话 TTL 与确认页文案
+  qr-login:
+    ttl-seconds: ${QR_LOGIN_TTL_SECONDS:120}
+    site-label: ${QR_LOGIN_SITE_LABEL:网页版登录}
+  platform:
+    website: ${PLATFORM_WEBSITE:https://99chat.example.com}
+    email: ${PLATFORM_EMAIL:support@99chat.example.com}
+    version: ${PLATFORM_VERSION:}
+    build: ${PLATFORM_BUILD:}
+    download-url: ${PLATFORM_DOWNLOAD_URL:}
+    # 灰度命中哈希密钥;缺省回退为常量 chat99(跨环境 deviceId 命中会变化)
+    gray-hash-secret: ${PLATFORM_GRAY_HASH_SECRET:}
+    feedback-prefix: feedback/
+    max-feedback-screenshots: 5
+    max-feedback-content-length: 2000
+  # LiveKit 自建媒体（新客户端 1v1 语音/视频）。见 docs/livekit-self-host.md
+  livekit:
+    enabled: ${LIVEKIT_ENABLED:false}
+    host: ${LIVEKIT_HOST:}
+    api-key: ${LIVEKIT_API_KEY:}
+    api-secret: ${LIVEKIT_API_SECRET:}
+    token-ttl-seconds: ${LIVEKIT_TOKEN_TTL_SECONDS:3600}
+    ring-timeout-seconds: ${LIVEKIT_RING_TIMEOUT_SECONDS:60}
+    webhook-enabled: ${LIVEKIT_WEBHOOK_ENABLED:true}
+  # TRTC/TUICallKit 遗留回调：新版本默认关闭 bootstrap；旧 App 可仍开 enabled。
+  trtc:
+    callback:
+      enabled: ${TRTC_CALLBACK_ENABLED:false}
+      allowed-sdk-app-ids: ${TRTC_ALLOWED_SDK_APP_IDS:}
+      callback-token: ${TRTC_CALLBACK_TOKEN:}
+      bootstrap-on-startup: ${TRTC_CALLBACK_BOOTSTRAP:false}
+      callback-url: ${TRTC_CALLBACK_URL:}
+  admin:
+    ip-whitelist: ${ADMIN_IP_WHITELIST:127.0.0.1,0:0:0:0:0:0:0:1}
+  security:
+    # 可信反向代理跳数：解析 X-Forwarded-For 时只信任最右侧 N 段。
+    # 单层 nginx 设 1；前置 CDN（如 Cloudflare）设 2；0 表示不信任 XFF 只用直连 IP。
+    trusted-proxy-count: ${TRUSTED_PROXY_COUNT:1}
+    trusted-proxy-addresses: ${TRUSTED_PROXY_ADDRESSES:127.0.0.1,::1,0:0:0:0:0:0:0:1}
+  admin-user-generation:
+    # 独立密钥优先；兼容部署可回退到现有内部集成 Token
+    encryption-key: ${ACCOUNT_GENERATION_ENCRYPTION_KEY:${INTEGRATION_API_TOKEN:}}
+    poll-interval-ms: ${ACCOUNT_GENERATION_POLL_INTERVAL_MS:1000}
+    retention-days: ${ACCOUNT_GENERATION_RETENTION_DAYS:30}
+  sync:
+    photo-prefix: user-backup/
+    upload-expire-minutes: 60
+    max-contacts-batch: 500
+    max-photos-check: 100
+    presign-expire-seconds: 3600
+    max-video-upload-bytes: ${SYNC_MAX_VIDEO_UPLOAD_BYTES:104857600}
+  system-notify:
+    sender-user-id: ${SYSTEM_NOTIFY_SENDER_ID:99Messenger}
+    sender-display-name: ${SYSTEM_NOTIFY_SENDER_NAME:99Messenger}
+    sender-face-url: ${SYSTEM_NOTIFY_SENDER_FACE_URL:https://99chat.oss-cn-hongkong.aliyuncs.com/moren/default_c2c_head.png}
+    bootstrap-on-startup: ${SYSTEM_NOTIFY_BOOTSTRAP:true}
+    auto-friend-on-register: ${SYSTEM_NOTIFY_AUTO_FRIEND:true}
+    friend-add-source: ${SYSTEM_NOTIFY_FRIEND_SOURCE:AddSource_Type_Server}
+    register-welcome-enabled: ${SYSTEM_NOTIFY_REGISTER_WELCOME:true}
+    register-welcome-message: ${SYSTEM_NOTIFY_WELCOME_MSG:欢迎使用99 Messenger。}
+  platform-wallet-notice:
+    sender-user-id: ${PLATFORM_WALLET_NOTICE_SENDER_ID:99Chat}
+    sender-display-name: ${PLATFORM_WALLET_NOTICE_SENDER_NAME:99Chat支付助手}
+    sender-face-url: ${PLATFORM_WALLET_NOTICE_SENDER_FACE_URL:https://99chat.oss-cn-hongkong.aliyuncs.com/moren/default_c2c_head.png}
+    service-name: ${PLATFORM_WALLET_NOTICE_SERVICE_NAME:支付助手}
+    bootstrap-on-startup: ${PLATFORM_WALLET_NOTICE_BOOTSTRAP:true}
+    auto-friend-on-register: ${PLATFORM_WALLET_NOTICE_AUTO_FRIEND:true}
+    friend-add-source: ${PLATFORM_WALLET_NOTICE_FRIEND_SOURCE:AddSource_Type_Server}
+    notify-enabled: ${PLATFORM_WALLET_NOTICE_ENABLED:true}
+  # 钱包运维 TG 群通知（充币入账 / 提现申请 / 链上 USDT 变动）+ 群内查余额
+  telegram-ops:
+    enabled: ${TELEGRAM_OPS_ENABLED:false}
+    bot-token: ${TELEGRAM_OPS_BOT_TOKEN:}
+    chat-id: ${TELEGRAM_OPS_CHAT_ID:}
+    notify-deposit: ${TELEGRAM_OPS_NOTIFY_DEPOSIT:true}
+    notify-withdraw: ${TELEGRAM_OPS_NOTIFY_WITHDRAW:true}
+    notify-sweep: ${TELEGRAM_OPS_NOTIFY_SWEEP:true}
+    query-enabled: ${TELEGRAM_OPS_QUERY_ENABLED:true}
+    poll-timeout-seconds: ${TELEGRAM_OPS_POLL_TIMEOUT_SECONDS:25}
+    game-control-chat-id: ${TELEGRAM_OPS_GAME_CONTROL_CHAT_ID:}
+    game-control-enabled: ${TELEGRAM_OPS_GAME_CONTROL_ENABLED:false}
+  telegram:
+    # 运维探活接口密钥；未配置时回退机器人同步密钥（兼容旧部署）
+    probe-secret: ${TELEGRAM_PROBE_SECRET:${ROBOT_SYNC_SECRET:}}
+  user-friend:
+    before-send-enforce: ${USER_FRIEND_BEFORE_SEND_ENFORCE:false}
+    before-send-log-only: ${USER_FRIEND_BEFORE_SEND_LOG_ONLY:true}
+    request-cooldown-seconds: ${USER_FRIEND_REQUEST_COOLDOWN_SECONDS:600}
+  realtime:
+    enabled: ${REALTIME_ENABLED:true}
+    tcp-port: ${REALTIME_TCP_PORT:8082}
+    auth-timeout-seconds: ${REALTIME_AUTH_TIMEOUT_SECONDS:10}
+    idle-timeout-seconds: ${REALTIME_IDLE_TIMEOUT_SECONDS:90}
+    max-frame-length: ${REALTIME_MAX_FRAME_LENGTH:8192}
+    max-connections: ${REALTIME_MAX_CONNECTIONS:20000}
+    max-connections-per-ip: ${REALTIME_MAX_CONNECTIONS_PER_IP:100}
+    redis-broadcast-enabled: ${REALTIME_REDIS_BROADCAST:true}
+    offline-push-enabled: ${REALTIME_OFFLINE_PUSH:true}
+    friend-list-offline-push-enabled: ${REALTIME_FRIEND_LIST_OFFLINE_PUSH:false}
+    group-offline-push-enabled: ${REALTIME_GROUP_OFFLINE_PUSH:false}
+  user-friend-sync:
+    batch-size: ${USER_FRIEND_SYNC_BATCH_SIZE:50}
+    delay-between-users-ms: ${USER_FRIEND_SYNC_DELAY_MS:100}
+    scheduled-enabled: ${USER_FRIEND_SYNC_SCHEDULED:false}
+    scheduled-interval-ms: ${USER_FRIEND_SYNC_INTERVAL_MS:300000}
+    max-users-per-scheduled-run: ${USER_FRIEND_SYNC_SCHEDULED_MAX:200}
+    run-on-startup: ${USER_FRIEND_SYNC_ON_STARTUP:false}
+    max-users-on-startup: ${USER_FRIEND_SYNC_STARTUP_MAX:0}
+  group-projection-sync:
+    max-groups: ${GROUP_PROJECTION_SYNC_MAX_GROUPS:10000}
+    member-page-size: ${GROUP_PROJECTION_SYNC_MEMBER_PAGE_SIZE:200}
+    delay-between-groups-ms: ${GROUP_PROJECTION_SYNC_DELAY_MS:50}
+    sync-users-after-groups: ${GROUP_PROJECTION_SYNC_USERS:false}
+    user-batch-size: ${GROUP_PROJECTION_SYNC_USER_BATCH_SIZE:50}
+    delay-between-users-ms: ${GROUP_PROJECTION_SYNC_USER_DELAY_MS:20}
+    max-users: ${GROUP_PROJECTION_SYNC_MAX_USERS:0}
+    run-on-startup: ${GROUP_PROJECTION_SYNC_ON_STARTUP:false}
+    max-groups-on-startup: ${GROUP_PROJECTION_SYNC_STARTUP_MAX_GROUPS:0}
+  group-join:
+    # 入群待审批/审批结果是否发系统号 C2C GROUP_JOIN_NOTIFY（默认关，走 TCP/Push group_changed）
+    official-notify-enabled: ${GROUP_JOIN_OFFICIAL_NOTIFY:false}
+  notify-friend-backfill:
+    system-notify-enabled: ${NOTIFY_FRIEND_BACKFILL_SYSTEM:true}
+    platform-wallet-enabled: ${NOTIFY_FRIEND_BACKFILL_WALLET:true}
+    batch-size: ${NOTIFY_FRIEND_BACKFILL_BATCH_SIZE:100}
+    delay-between-users-ms: ${NOTIFY_FRIEND_BACKFILL_DELAY_MS:50}
+    scheduled-enabled: ${NOTIFY_FRIEND_BACKFILL_SCHEDULED:false}
+    scheduled-interval-ms: ${NOTIFY_FRIEND_BACKFILL_INTERVAL_MS:60000}
+    max-users-per-scheduled-run: ${NOTIFY_FRIEND_BACKFILL_SCHEDULED_MAX:500}
+    run-on-startup: ${NOTIFY_FRIEND_BACKFILL_ON_STARTUP:false}
+    max-users-on-startup: ${NOTIFY_FRIEND_BACKFILL_STARTUP_MAX:0}
+  announcement:
+    scheduled-push-interval-ms: ${ANNOUNCEMENT_SCHEDULED_PUSH_INTERVAL_MS:30000}
+    global-push:
+      enabled: ${ANNOUNCEMENT_GLOBAL_PUSH_ENABLED:true}
+      batch-size: ${ANNOUNCEMENT_GLOBAL_PUSH_BATCH_SIZE:100}
+      delay-between-users-ms: ${ANNOUNCEMENT_GLOBAL_PUSH_DELAY_MS:150}
+      active-days: ${ANNOUNCEMENT_GLOBAL_PUSH_ACTIVE_DAYS:0}
+  official-account:
+    id-prefix: ${OFFICIAL_ACCOUNT_ID_PREFIX:@TOA#_99chat_}
+    default-owner-user-id: ${OFFICIAL_ACCOUNT_OWNER:}
+    default-max-subscribers: 100000
+    # 控制台已创建的公众号（腾讯云默认 ID 格式）
+    primary-official-account-id: ${OFFICIAL_ACCOUNT_PRIMARY_ID:@TOA#_@TOA#d4CH}
+    primary-slug: ${OFFICIAL_ACCOUNT_PRIMARY_SLUG:d4ch}
+    bootstrap-on-startup: ${OFFICIAL_ACCOUNT_BOOTSTRAP:true}
+    register-welcome-enabled: ${OFFICIAL_ACCOUNT_REGISTER_WELCOME:false}
+    subscribe-welcome-enabled: ${OFFICIAL_ACCOUNT_SUBSCRIBE_WELCOME:true}
+    welcome-message: ${OFFICIAL_ACCOUNT_WELCOME_MSG:欢迎使用99 Messenger。}
+    # 兼容旧配置名
+    register-welcome-message: ${OFFICIAL_ACCOUNT_REGISTER_WELCOME_MSG:欢迎使用99 Messenger。}
+  wallet:
+    deposit-mnemonic: ${TRON_DEPOSIT_MNEMONIC:}
+    hot-wallet-private-key: ${TRON_HOT_WALLET_PRIVATE_KEY:}
+    # Base64(AES-128/192/256 key)；用于助记词/热钱包/用户私钥信封加密
+    data-encryption-key: ${WALLET_DATA_ENCRYPTION_KEY:}
+    trongrid-api-key: ${TRONGRID_API_KEY:}
+    trongrid-base-url: ${TRONGRID_BASE_URL:https://api.trongrid.io}
+    usdt-contract: ${TRON_USDT_CONTRACT:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t}
+    min-deposit-usdt-micro: 1000000
+    deposit-confirmations: 19
+    # 已废弃：由 deposit-hot/cold/confirm-scan-interval-ms 替代
+    deposit-scan-interval-ms: ${WALLET_DEPOSIT_SCAN_INTERVAL_MS:45000}
+    deposit-confirm-scan-interval-ms: ${WALLET_DEPOSIT_CONFIRM_SCAN_INTERVAL_MS:30000}
+    deposit-hot-scan-interval-ms: ${WALLET_DEPOSIT_HOT_SCAN_INTERVAL_MS:60000}
+    deposit-cold-scan-interval-ms: ${WALLET_DEPOSIT_COLD_SCAN_INTERVAL_MS:180000}
+    deposit-hot-ttl-minutes: ${WALLET_DEPOSIT_HOT_TTL_MINUTES:120}
+    deposit-cold-batch-size: ${WALLET_DEPOSIT_COLD_BATCH_SIZE:200}
+    deposit-cold-lookback-days: ${WALLET_DEPOSIT_COLD_LOOKBACK_DAYS:3}
+    deposit-scan-max-round-ms: ${WALLET_DEPOSIT_SCAN_MAX_ROUND_MS:60000}
+    deposit-scan-concurrency: ${WALLET_DEPOSIT_SCAN_CONCURRENCY:3}
+    trongrid-qps-limit: ${TRONGRID_QPS_LIMIT:6}
+    deposit-mode: ${WALLET_DEPOSIT_MODE:address-poll}
+    deposit-block-scan-interval-ms: ${WALLET_DEPOSIT_BLOCK_SCAN_INTERVAL_MS:3000}
+    deposit-block-scan-batch-size: ${WALLET_DEPOSIT_BLOCK_SCAN_BATCH_SIZE:20}
+    red-packet-expire-hours: 24
+    red-packet-expire-scan-interval-ms: 300000
+    # 拼手气领取：Redis 抢资格 + DB 行锁真随机拆包；Redis 不可用自动降级行锁
+    card-read-cache-ttl-seconds: ${WALLET_CARD_READ_CACHE_TTL_SECONDS:60}
+    withdraw-broadcast-interval-ms: 15000
+    withdraw-confirm-scan-interval-ms: ${WALLET_WITHDRAW_CONFIRM_SCAN_INTERVAL_MS:15000}
+    withdraw-progress-push-throttle-ms: ${WALLET_WITHDRAW_PROGRESS_PUSH_THROTTLE_MS:5000}
+    withdraw-live-activity-dismissal-seconds: ${WALLET_WITHDRAW_LIVE_ACTIVITY_DISMISSAL_SECONDS:0}
+    catfee-api-key: ${CATFEE_API_KEY:}
+    catfee-api-secret: ${CATFEE_API_SECRET:}
+    catfee-base-url: ${CATFEE_BASE_URL:https://api.catfee.io}
+    catfee-energy-quantity: ${CATFEE_ENERGY_QUANTITY:131000}
+    catfee-energy-duration: ${CATFEE_ENERGY_DURATION:1h}
+    catfee-order-timeout-ms: ${CATFEE_ORDER_TIMEOUT_MS:90000}
+    activation-trx-sun: ${WALLET_ACTIVATION_TRX_SUN:2000000}
+    withdraw-mode: ${WALLET_WITHDRAW_MODE:manual}
+    sweep-job-enabled: ${WALLET_SWEEP_JOB_ENABLED:true}
+    sweep-job-interval-ms: ${WALLET_SWEEP_JOB_INTERVAL_MS:1800000}
+    sweep-job-batch-size: ${WALLET_SWEEP_JOB_BATCH_SIZE:20}
+    sweep-job-min-usdt-micro: ${WALLET_SWEEP_JOB_MIN_USDT_MICRO:500000000}
+    sweep-collect-address: ${WALLET_SWEEP_COLLECT_ADDRESS:}
+    frankfurter-url: https://api.frankfurter.dev/v1/latest?from=USD&to=CNY
+    exchange-rate-cache-seconds: 300
+    # 汇率外呼短超时；后台 SWR 刷新间隔（默认约 cache 一半）
+    exchange-rate-connect-timeout-ms: ${WALLET_EXCHANGE_RATE_CONNECT_TIMEOUT_MS:2000}
+    exchange-rate-read-timeout-ms: ${WALLET_EXCHANGE_RATE_READ_TIMEOUT_MS:3000}
+    exchange-rate-refresh-interval-ms: ${WALLET_EXCHANGE_RATE_REFRESH_INTERVAL_MS:150000}
+    pay-pin-max-failures: 5
+    pay-pin-lock-minutes: 30
+    currency-catalog:
+      items:
+        - code: "99"
+          name: 99币
+          logo-url: ${WALLET_99_LOGO_URL:https://99chat.oss-cn-hongkong.aliyuncs.com/wallet/platform.png}
+          platform-coin: true
+          deposit-enabled: false
+          withdraw-enabled: false
+          sort-order: 1
+        - code: USDT
+          name: USDT
+          logo-url: ${WALLET_USDT_LOGO_URL:https://99chat.oss-cn-hongkong.aliyuncs.com/wallet/usdt.png}
+          platform-coin: false
+          deposit-enabled: true
+          withdraw-enabled: true
+          sort-order: 2
+
+sangong:
+  # 三公统一入口开关：开启后主服务把 /sangong/** 转发到内网 sangong-service
+  proxy-enabled: ${SANGONG_PROXY_ENABLED:true}
+  service-url: ${SANGONG_SERVICE_URL:http://127.0.0.1:8088}
+  # 三公报表图片 OSS 保留天数与清理时间（对象前缀 sangong/bet-reports/）
+  report-image-retention-days: ${SANGONG_REPORT_IMAGE_RETENTION_DAYS:7}
+  report-image-cleanup-cron: ${SANGONG_REPORT_IMAGE_CLEANUP_CRON:0 30 4 * * *}
+
+group-live:
+  # 群直播统一入口：主服务把 /group-live/** 转发到内网 group-live-service
+  proxy-enabled: ${GROUP_LIVE_PROXY_ENABLED:true}
+  service-url: ${GROUP_LIVE_SERVICE_URL:http://127.0.0.1:8092}
+
+ai-assistant:
+  # AI 助手统一入口：主服务把 /ai-assistant/** 转发到内网 ai-assistant-service
+  proxy-enabled: ${AI_ASSISTANT_PROXY_ENABLED:true}
+  service-url: ${AI_ASSISTANT_SERVICE_URL:http://127.0.0.1:8095}
+
+kefu:
+  # 客服统一入口：主服务把 /kefu/public/**、/kefu/rails/**、/kefu/cable 转发到本机 Chatwoot
+  proxy-enabled: ${KEFU_PROXY_ENABLED:true}
+  service-url: ${KEFU_SERVICE_URL:http://127.0.0.1:3000}
+  # Chatwoot FRONTEND_URL，用于把附件绝对地址改写成主服务 /kefu
+  upstream-public-url: ${KEFU_UPSTREAM_PUBLIC_URL:http://43.154.162.29}
+  # 留空则按请求 Host / X-Forwarded-* 推导，例如 http://HOST:8081/kefu
+  public-base-url: ${KEFU_PUBLIC_BASE_URL:}
+
+wallet:
+  # 资金节点代理：true 时主服把 /wallet/** 转到 wallet-service，且本进程不再跑资金 Job
+  proxy-enabled: ${WALLET_PROXY_ENABLED:false}
+  service-url: ${WALLET_SERVICE_URL:http://127.0.0.1:8093}
+
+robot:
+  # 机器人模块总开关：切流到 robot-service 后设 ROBOT_MODULE_ENABLED=false 并重启
+  enabled: ${ROBOT_MODULE_ENABLED:true}
+  # 模块关闭时，主服务把 robot 相关路径转发到该地址（RobotServiceProxyController）
+  service-url: ${ROBOT_SERVICE_URL:http://127.0.0.1:8091}
+  sync:
+    secret: ${ROBOT_SYNC_SECRET:}
+    datasource:
+      url: jdbc:mysql://${ROBOT_DB_HOST:127.0.0.1}:${ROBOT_DB_PORT:3306}/${ROBOT_DB_NAME:jiqiren}?sslMode=${ROBOT_DB_SSL_MODE:DISABLED}&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&useUnicode=true
+      username: ${ROBOT_DB_USERNAME:jiqiren}
+      password: ${ROBOT_DB_PASSWORD:jiqiren}
+      maximum-pool-size: 10
+  agent-export:
+    storage-dir: ${ROBOT_AGENT_EXPORT_DIR:data/agent-export}

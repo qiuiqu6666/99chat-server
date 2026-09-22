@@ -1,0 +1,12 @@
+{
+  "generated_at": "2026-09-12T13:02:57Z",
+  "group_id_filter": null,
+  "ok": 56844,
+  "fail": 2,
+  "skipped": 5356,
+  "planned_writes": 56846,
+  "duration_ms": 4868643,
+  "delay_ms": 50,
+  "rest_base": "https://console.tim.qq.com/v4/",
+  "sdk_app_id": 1600155864
+}

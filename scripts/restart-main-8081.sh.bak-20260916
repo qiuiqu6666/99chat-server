@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# 仅重启现网 :8081，不杀 wallet-node.jar / :8093
+set -euo pipefail
+cd "$(dirname "$0")/.."
+if [[ -f .env ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+JAVA_BIN="${JAVA_BIN:-/www/server/java/jdk-17.0.8/bin/java}"
+JAR="${JAR:-target/server-0.0.1-SNAPSHOT.jar}"
+if [[ ! -f "$JAR" ]]; then
+  echo "missing $JAR" >&2
+  exit 1
+fi
+
+OLD_PID=""
+if command -v ss >/dev/null 2>&1; then
+  OLD_PID=$(ss -tlnp | awk '/:8081 / {print}' | grep -oP 'pid=\K[0-9]+' | head -1 || true)
+fi
+if [[ -n "$OLD_PID" ]]; then
+  echo "stopping :8081 pid=$OLD_PID"
+  kill "$OLD_PID" || true
+  for _ in $(seq 1 45); do
+    if ! kill -0 "$OLD_PID" 2>/dev/null; then
+      break
+    fi
+    sleep 1
+  done
+  if kill -0 "$OLD_PID" 2>/dev/null; then
+    echo "pid $OLD_PID still alive, sending TERM again" >&2
+    kill "$OLD_PID" || true
+    sleep 3
+  fi
+fi
+
+export LANG="${LANG:-C.UTF-8}"
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+nohup "$JAVA_BIN" -jar -Xmx1024M -Xms256M \
+  -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 \
+  "$JAR" --server.port=8081 --server.address=0.0.0.0 >> logs/app.log 2>&1 &
+echo "started :8081 pid=$!"

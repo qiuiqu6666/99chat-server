@@ -1,0 +1,7 @@
+node_modules/
+dist/
+api/storage/sessions/*
+!api/storage/sessions/.gitkeep
+api/config.local.php
+*.log
+.DS_Store

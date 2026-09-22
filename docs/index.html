@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>99chat 对接文档</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="description" content="99chat-server API 对接文档 — Flutter 客户端、运营后台、运维">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+  <style>
+    :root {
+      --theme-color: #20a53a;
+      --theme-color-dark: #178a2e;
+    }
+    .app-name-link img { display: none; }
+    .sidebar .app-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    .markdown-section h1 { font-size: 1.75rem; border-bottom: 1px solid #eee; padding-bottom: .4rem; }
+    .markdown-section h2 { font-size: 1.35rem; margin-top: 2rem; }
+    .markdown-section table { display: table; width: 100%; }
+    .markdown-section code { font-size: .9em; }
+    .sidebar-nav > ul > li > p { font-weight: 600; color: #555; margin: 1.2rem 0 .4rem; font-size: .85rem; text-transform: uppercase; letter-spacing: .03em; }
+    .sidebar-nav > ul > li > p + ul { margin-top: 0; }
+    .search input { border-color: var(--theme-color) !important; }
+    .docsify-pagination-container { border-top: 1px solid #eee; }
+    @media (max-width: 768px) {
+      .markdown-section { padding: 1rem 1.2rem 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">加载中…</div>
+  <script>
+    // 直接访问 /foo.md 时自动跳转到 hash 路由
+    (function () {
+      var path = location.pathname;
+      if (path.endsWith('.md') && !location.hash) {
+        location.replace('/#' + path);
+      }
+    })();
+  </script>
+  <script>
+    window.$docsify = {
+      name: '99chat 对接文档',
+      repo: '',
+      loadSidebar: true,
+      subMaxLevel: 3,
+      auto2top: true,
+      relativePath: true,
+      homepage: 'home.md',
+      search: {
+        paths: 'auto',
+        placeholder: '搜索文档…',
+        noData: '没有匹配结果',
+        depth: 3
+      },
+      copyCode: {
+        buttonText: '复制',
+        errorText: '失败',
+        successText: '已复制'
+      },
+      pagination: {
+        previousText: '上一篇',
+        nextText: '下一篇',
+        crossChapter: true,
+        crossChapterText: true
+      },
+      notFoundPage: '_404.md'
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-pagination@2/dist/docsify-pagination.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-java.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-dart.min.js"></script>
+</body>
+</html>

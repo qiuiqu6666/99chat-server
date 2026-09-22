@@ -1,0 +1,26 @@
+-- 后端代发腾讯 IM 原生视频消息的幂等出站表
+CREATE TABLE IF NOT EXISTS chat_native_video_message (
+  operation_id VARCHAR(48) NOT NULL,
+  sender_user_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  client_operation_id VARCHAR(128) NOT NULL,
+  attachment_id VARCHAR(48) NOT NULL,
+  reference_id VARCHAR(48) NOT NULL,
+  conversation_type VARCHAR(16) NOT NULL,
+  conversation_key VARCHAR(160) NOT NULL,
+  peer_user_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL,
+  group_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL,
+  status VARCHAR(16) NOT NULL,
+  im_random INT NOT NULL,
+  msg_key VARCHAR(128) NULL,
+  msg_seq BIGINT NULL,
+  fail_code VARCHAR(64) NULL,
+  media_base_url VARCHAR(255) NULL,
+  lock_until DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL,
+  updated_at DATETIME(3) NOT NULL,
+  sent_at DATETIME(3) NULL,
+  PRIMARY KEY (operation_id),
+  UNIQUE KEY uk_chat_nvm_sender_op (sender_user_id, client_operation_id),
+  KEY idx_chat_nvm_attachment (attachment_id),
+  KEY idx_chat_nvm_status (status, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;

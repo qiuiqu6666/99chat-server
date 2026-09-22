@@ -1,0 +1,16 @@
+[Unit]
+Description=LiveKit SFU (99chat trtc.99chat.vip)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStartPre=/www/wwwroot/99chat-server/deploy/livekit/apply-config.sh
+ExecStart=/usr/local/bin/livekit-server --config /www/wwwroot/99chat-server/deploy/livekit/livekit.runtime.yaml
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

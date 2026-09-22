@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>三公 · 租户报表</title>
+  <link rel="stylesheet" href="/admin.css"><link rel="stylesheet" href="/admin-mobile.css"><link rel="stylesheet" href="/admin-auth.css"><link rel="stylesheet" href="/admin-polish.css">
+</head>
+<body>
+  <section id="loginView" class="login-view"><div class="login-card"><div class="brand-mark">三</div><p class="eyebrow">SANGONG CONTROL</p><h1>管理后台登录</h1><p class="login-subtitle">输入账号密码即可登录</p><label>账号<input id="loginUsername" autocomplete="username" placeholder="后台账号"></label><label>密码<input id="loginPassword" type="password" autocomplete="current-password" placeholder="后台密码"></label><button id="loginBtn" class="primary login-btn">登录</button><p id="loginError" class="login-error"></p><details class="advanced-login"><summary>高级设置</summary><label>接口地址<input id="loginApiBase" placeholder="http://192.168.10.199:8089"></label><label>租户 ID（可选）<input id="loginTenantId" placeholder="自动识别"></label></details></div></section>
+  <main class="shell">
+    <header class="topbar">
+      <button id="menuBtn" class="icon-btn">☰</button>
+      <div><p class="eyebrow">SANGONG CONTROL</p><h1>租户经营报表</h1></div>
+      <button id="settingsBtn" class="icon-btn" aria-label="设置">⚙</button>
+    </header>
+
+    <section class="toolbar card">
+      <label>业务批次<select id="reportSession"><option value="">自动选择当前/最近批次</option></select></label>
+      <button id="refreshBtn" class="primary">刷新数据</button>
+      <span id="status" class="status">未加载</span>
+    </section>
+
+    <section class="hero card">
+      <div><span>本批次总流水</span><strong id="totalTurnover">—</strong></div>
+      <div class="hero-meta"><span>本批次盈亏</span><b id="profitLoss">—</b><small id="memberCount">— 位成员</small></div>
+    </section>
+
+    <section class="metric-grid">
+      <article class="metric card"><span>总上分</span><strong id="totalUp">—</strong><small>本批次资金流入</small></article>
+      <article class="metric card"><span>总下分</span><strong id="totalDown">—</strong><small>本批次资金流出</small></article>
+      <article class="metric card"><span>庄流水</span><strong id="bankerTurnover">—</strong><small>Banker turnover</small></article>
+      <article class="metric card"><span>闲流水</span><strong id="playerTurnover">—</strong><small>Player turnover</small></article>
+      <article class="metric card"><span>已返水</span><strong id="rebate">—</strong><small>已入账返水</small></article>
+      <article class="metric card"><span>活跃用户</span><strong id="activeUsers">—</strong><small>本批次产生流水</small></article>
+    </section>
+
+    <section class="section-head"><div><p class="eyebrow">MEMBERS</p><h2>用户明细</h2></div><input id="search" class="search" placeholder="搜索昵称 / IM UserID"></section>
+    <section id="userCards" class="user-cards"><div class="empty card">暂无数据</div></section>
+
+    <section class="section-head"><div><p class="eyebrow">HIERARCHY</p><h2>团队层级</h2></div><button id="expandBtn" class="ghost">展开全部</button></section>
+    <section id="tree" class="card tree"><div class="empty">暂无层级数据</div></section>
+  </main>
+
+  <aside id="drawer" class="drawer"><div class="drawer-head"><b>三公后台</b><button id="closeMenu" class="icon-btn">×</button></div><button class="drawer-item active">▦　经营总览</button><button class="drawer-item">♙　用户管理</button><button class="drawer-item">⌘　团队层级</button><button class="drawer-item">￥　资金明细</button><button id="drawerSettings" class="drawer-item">⚙　连接设置</button></aside><div id="drawerMask" class="drawer-mask"></div><nav class="bottom-nav"><button class="active">▦<span>总览</span></button><button>♙<span>用户</span></button><button>⌘<span>团队</span></button><button>￥<span>资金</span></button><button id="bottomSettings">⚙<span>设置</span></button></nav>
+
+  <dialog id="settingsDialog"><form method="dialog" class="settings card"><h2>连接设置</h2><label>接口地址<input id="apiBase" placeholder="http://192.168.10.199:8089"></label><label>租户 ID<input id="tenantId" placeholder="@TGS#..."></label><label>Bearer Token<input id="token" type="password" placeholder="登录 Token"></label><div class="dialog-actions"><button value="cancel" class="ghost">取消</button><button id="saveSettings" value="default" class="primary">保存</button></div></form></dialog>
+  <script src="/admin.js"></script>
+</body>
+</html>

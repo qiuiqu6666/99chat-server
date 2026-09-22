@@ -1,0 +1,412 @@
+{
+  "generated_at": "2026-09-11T15:09:13Z",
+  "mutual_pair_count": 8897,
+  "friend_add_planned": 8897,
+  "remark_write_count": 2494,
+  "remark_skip_empty_count": 15300,
+  "db_active_edge_count": 18108,
+  "max_pairs": null,
+  "pairs_sample": [
+    {
+      "user_a": "99Chat",
+      "user_b": "a0nxm1qtgz",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a0wtuh8rih",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a15qj2x6fy",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a185ttt1eg",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a1e4v40a0o",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a1lufdeacs",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a1t1vs3gfr",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a1x9vqb4mm",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a28goitxan",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a2bnt83ccm",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a2etyf1r4q",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a2ndh2tva7",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a2tjngsjvt",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a397ivzl69",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a3d5h52iqf",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a3eqlosc0s",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a3lc4o6nz8",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a45ivkdmmy",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a4mtfcy84r",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a4yn1mc9sz",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a4zuqmrdcg",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a543qfkf4a",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a6v7jjr4mk",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a7b71kt1dz",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a8nvpqm7cs",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a8t1kgjj8l",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "a9r289b6zh",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "aa1iwtqbsu",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "aaat61ux8v",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "ab6ukdtskq",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "ab9wcdex66",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "absd1hv8b3",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "abzt4nbyra",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "ac4svuw68x",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "acmtyunw96",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "acnj6oxey9",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "acup6epebl",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "acys5ryjqe",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "adjhlch5d6",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "adsdujbzf7",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "adsv55m27u",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "ae5fji9dow",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "aef1vjyrzi",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "aes1uum6y6",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "af4u8gzjvq",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "afcvvxujrd",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "afmab0d4ev",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "afsqdw797d",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "ag5sb4vamo",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    },
+    {
+      "user_a": "99Chat",
+      "user_b": "agvu6w50mh",
+      "remark_ab": null,
+      "remark_ba": null,
+      "write_remark_ab": false,
+      "write_remark_ba": false
+    }
+  ],
+  "pairs_path": "/www/wwwroot/99chat-server/scripts/push-friends-to-im/state/push_friends_pairs.jsonl"
+}

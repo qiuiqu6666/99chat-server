@@ -1,0 +1,8 @@
+# Optional TLS front for LiveKit when using profile `tls`:
+#   docker compose --profile tls up -d
+#
+# Replace livekit.example.com with your domain.
+
+livekit.example.com {
+	reverse_proxy 127.0.0.1:7880
+}

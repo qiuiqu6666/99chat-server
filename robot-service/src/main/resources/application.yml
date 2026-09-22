@@ -1,0 +1,40 @@
+server:
+  port: ${ROBOT_SERVICE_PORT:8091}
+  tomcat:
+    # JSON POST body；批次上限约 300KB 文本，留足余量到 4MB
+    max-http-form-post-size: 4MB
+    max-swallow-size: 4MB
+
+spring:
+  application:
+    name: 99chat-robot-service
+  jackson:
+    default-property-inclusion: non_null
+
+# 与主服务共享同一 App JWT 密钥（值同主库 app_setting 的 JWT_SECRET）
+chat99:
+  jwt:
+    secret: ${JWT_SECRET:}
+
+robot:
+  sync:
+    secret: ${ROBOT_SYNC_SECRET:}
+    datasource:
+      url: jdbc:mysql://${ROBOT_DB_HOST:127.0.0.1}:${ROBOT_DB_PORT:3306}/${ROBOT_DB_NAME:jiqiren}?sslMode=${ROBOT_DB_SSL_MODE:DISABLED}&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&useUnicode=true
+      username: ${ROBOT_DB_USERNAME:jiqiren}
+      password: ${ROBOT_DB_PASSWORD:jiqiren}
+      maximum-pool-size: ${ROBOT_DB_POOL_SIZE:16}
+  # Telegram / 主服务探活调内部机器码接口（与 TELEGRAM_PROBE_SECRET 对齐）
+  probe-secret: ${ROBOT_PROBE_SECRET:${TELEGRAM_PROBE_SECRET:${ROBOT_SYNC_SECRET:}}}
+  agent-export:
+    storage-dir: ${ROBOT_AGENT_EXPORT_DIR:data/agent-export}
+
+logging:
+  file:
+    name: ${ROBOT_SERVICE_LOG_FILE:logs/robot-service.log}
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 7
+  level:
+    com.chat99: INFO

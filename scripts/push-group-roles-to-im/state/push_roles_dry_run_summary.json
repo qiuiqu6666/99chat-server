@@ -1,0 +1,466 @@
+{
+  "generated_at": "2026-09-12T11:10:42Z",
+  "group_id_filter": null,
+  "group_count": 5356,
+  "member_rows": 62202,
+  "owner_skip": 5356,
+  "admin_write": 34216,
+  "member_write": 22630,
+  "write_planned": 56846,
+  "skip_other": 0,
+  "owner_mismatch_count": 0,
+  "max_rows": null,
+  "rows_sample": [
+    {
+      "group_id": "@TGS#22DV52KUR",
+      "user_id": "hyd3n8r6fg",
+      "role": 400,
+      "im_role": null,
+      "owner_user_id": "hyd3n8r6fg",
+      "action": "skip_owner",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "nvb76jtf32",
+      "role": 400,
+      "im_role": null,
+      "owner_user_id": "nvb76jtf32",
+      "action": "skip_owner",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "ceh3qqoot7",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "dpq2hmmvsc",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "k6qxy77crk",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "ktrojmihhw",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "mj2d9bisrz",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "p34z8sgtnr",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "q14gkm5swv",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "rs83hcbc1s",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "sunbpjwh7m",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "ufdu3rtsrl",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "vrce8nv86p",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "wlf9cierto",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "wo356xnswd",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "y60412m0jd",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "yo9g1g6bwq",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "znexzdkvvz",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#22SLDWMUO",
+      "user_id": "vu5sv7jcqy",
+      "role": 200,
+      "im_role": "Member",
+      "owner_user_id": "nvb76jtf32",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#23HJXJLUI",
+      "user_id": "rd4r19ixor",
+      "role": 400,
+      "im_role": null,
+      "owner_user_id": "rd4r19ixor",
+      "action": "skip_owner",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#23HJXJLUI",
+      "user_id": "ezb4emhf9n",
+      "role": 200,
+      "im_role": "Member",
+      "owner_user_id": "rd4r19ixor",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#23HJXJLUI",
+      "user_id": "qrhi1s92mc",
+      "role": 200,
+      "im_role": "Member",
+      "owner_user_id": "rd4r19ixor",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#23R6QKMUY",
+      "user_id": "on5ud27fe1",
+      "role": 400,
+      "im_role": null,
+      "owner_user_id": "on5ud27fe1",
+      "action": "skip_owner",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#23R6QKMUY",
+      "user_id": "re28u5hy9q",
+      "role": 200,
+      "im_role": "Member",
+      "owner_user_id": "on5ud27fe1",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#23R6QKMUY",
+      "user_id": "w8p20rotk6",
+      "role": 200,
+      "im_role": "Member",
+      "owner_user_id": "on5ud27fe1",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "ufdu3rtsrl",
+      "role": 400,
+      "im_role": null,
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "skip_owner",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "ceh3qqoot7",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "dpq2hmmvsc",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "ktrojmihhw",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "mj2d9bisrz",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "nvb76jtf32",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "p34z8sgtnr",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "q14gkm5swv",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "vrce8nv86p",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "wlf9cierto",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "wo356xnswd",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "yo9g1g6bwq",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "znexzdkvvz",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "k6qxy77crk",
+      "role": 200,
+      "im_role": "Member",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "rs83hcbc1s",
+      "role": 200,
+      "im_role": "Member",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "sunbpjwh7m",
+      "role": 200,
+      "im_role": "Member",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24DJW2OUO",
+      "user_id": "y60412m0jd",
+      "role": 200,
+      "im_role": "Member",
+      "owner_user_id": "ufdu3rtsrl",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24OO6TNU6",
+      "user_id": "q14gkm5swv",
+      "role": 400,
+      "im_role": null,
+      "owner_user_id": "q14gkm5swv",
+      "action": "skip_owner",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24OO6TNU6",
+      "user_id": "ceh3qqoot7",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "q14gkm5swv",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24OO6TNU6",
+      "user_id": "dpq2hmmvsc",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "q14gkm5swv",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24OO6TNU6",
+      "user_id": "ktrojmihhw",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "q14gkm5swv",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24OO6TNU6",
+      "user_id": "mj2d9bisrz",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "q14gkm5swv",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24OO6TNU6",
+      "user_id": "nvb76jtf32",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "q14gkm5swv",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24OO6TNU6",
+      "user_id": "p34z8sgtnr",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "q14gkm5swv",
+      "action": "write",
+      "owner_mismatch": false
+    },
+    {
+      "group_id": "@TGS#24OO6TNU6",
+      "user_id": "vrce8nv86p",
+      "role": 300,
+      "im_role": "Admin",
+      "owner_user_id": "q14gkm5swv",
+      "action": "write",
+      "owner_mismatch": false
+    }
+  ],
+  "rows_path": "/www/wwwroot/99chat-server/scripts/push-group-roles-to-im/state/push_roles_rows.jsonl"
+}

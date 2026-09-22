@@ -1,0 +1,896 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>3.5.14</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.chat99</groupId>
+	<artifactId>server</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>server</name>
+	<description/>
+	<url/>
+	<licenses>
+		<license/>
+	</licenses>
+	<developers>
+		<developer/>
+	</developers>
+	<scm>
+		<connection/>
+		<developerConnection/>
+		<tag/>
+		<url/>
+	</scm>
+	<properties>
+		<java.version>17</java.version>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-api</artifactId>
+			<version>0.12.6</version>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-impl</artifactId>
+			<version>0.12.6</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-jackson</artifactId>
+			<version>0.12.6</version>
+			<scope>runtime</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.mysql</groupId>
+			<artifactId>mysql-connector-j</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.github.tencentyun</groupId>
+			<artifactId>tls-sig-api-v2</artifactId>
+			<version>2.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.googlecode.libphonenumber</groupId>
+			<artifactId>libphonenumber</artifactId>
+			<version>8.13.50</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>okhttp</artifactId>
+			<version>4.12.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.aliyun.oss</groupId>
+			<artifactId>aliyun-sdk-oss</artifactId>
+			<version>3.18.1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.4.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>net.coobird</groupId>
+			<artifactId>thumbnailator</artifactId>
+			<version>0.4.20</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.sejda.imageio</groupId>
+			<artifactId>webp-imageio</artifactId>
+			<version>0.1.6</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.bitcoinj</groupId>
+			<artifactId>bitcoinj-core</artifactId>
+			<version>0.17</version>
+		</dependency>
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk18on</artifactId>
+			<version>1.78.1</version>
+		</dependency>
+
+		<!-- 腾讯云验证码 SDK -->
+		<dependency>
+			<groupId>com.tencentcloudapi</groupId>
+			<artifactId>tencentcloud-sdk-java-captcha</artifactId>
+			<version>3.1.1287</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.aliyun</groupId>
+			<artifactId>dypnsapi20170525</artifactId>
+			<version>1.1.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.eatthepath</groupId>
+			<artifactId>pushy</artifactId>
+			<version>0.15.4</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-codec</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-handler</artifactId>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<id>unpack-bootstrap-classes</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<mkdir dir="${project.build.outputDirectory}"/>
+								<unzip src="${project.basedir}/scripts/bootstrap/server-0.0.1-SNAPSHOT.jar"
+									dest="${project.build.directory}/bootstrap-unpack"/>
+								<copy todir="${project.build.outputDirectory}" overwrite="true">
+									<fileset dir="${project.build.directory}/bootstrap-unpack/BOOT-INF/classes">
+										<!-- These sources are maintained locally and must not be restored from the stale bootstrap JAR. -->
+										<exclude name="com/chat99/server/group/CommonGroupController*.class"/>
+										<exclude name="com/chat99/server/group/CommonGroupService*.class"/>
+										<exclude name="com/chat99/server/group/GroupMemberRepository*.class"/>
+										<exclude name="com/chat99/server/group/GroupMember.class"/>
+										<exclude name="com/chat99/server/group/GroupMember$*.class"/>
+										<exclude name="com/chat99/server/group/GroupProfile.class"/>
+										<exclude name="com/chat99/server/group/GroupProfile$*.class"/>
+										<exclude name="com/chat99/server/group/GroupMemberController*.class"/>
+										<exclude name="com/chat99/server/group/JoinApplicationMapper*.class"/>
+										<exclude name="com/chat99/server/im/GroupPushAggregationService*.class"/>
+										<exclude name="com/chat99/server/im/ImChatPushCallbackService*.class"/>
+										<!-- 群撤回转发 Kafka：本地 webhook 调用 publishGroupRecall，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/im/ImMessageWebhookController*.class"/>
+										<exclude name="com/chat99/server/messagearchive/ImMessageArchiveProducer*.class"/>
+										<exclude name="com/chat99/server/messagearchive/ImChatPushKafkaConsumer*.class"/>
+										<exclude name="com/chat99/server/messagearchive/MessageArchiveProperties*.class"/>
+										<exclude name="com/chat99/server/messagearchive/MessageArchiveKafkaConfig*.class"/>
+										<!-- IM REST 队列限流 + 本地鉴权：勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/im/restqueue/**"/>
+										<exclude name="com/chat99/server/im/ImAdminClient*.class"/>
+										<exclude name="com/chat99/server/group/UserOwnedGroupService*.class"/>
+										<exclude name="com/chat99/server/group/MeGroupCreateLimitController*.class"/>
+										<!-- 加群/建群限额：本地含 joinLimitForGroupType，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/group/GroupCreateLimitConfigService*.class"/>
+										<exclude name="com/chat99/server/group/GroupCreateLimitProperties*.class"/>
+										<exclude name="com/chat99/server/group/GroupJoinLimitService*.class"/>
+										<exclude name="com/chat99/server/group/GroupJoinLimitExceededException*.class"/>
+										<exclude name="com/chat99/server/group/ImGroupBeforeJoinCallbackService*.class"/>
+										<exclude name="com/chat99/server/group/ImGroupBeforeCreateCallbackService*.class"/>
+										<exclude name="com/chat99/server/im/ImProperties*.class"/>
+										<!-- 业务/IM 恒等：本地 ImUserIdService，禁止 bootstrap 旧映射 class / 实体 -->
+										<exclude name="com/chat99/server/im/ImUserIdService*.class"/>
+										<exclude name="com/chat99/server/im/UserImAccount*.class"/>
+										<exclude name="com/chat99/server/im/UserImAccountRepository*.class"/>
+										<exclude name="com/chat99/server/im/ImOnlineKickService*.class"/>
+										<exclude name="com/chat99/server/im/ImChatPushPreviewService*.class"/>
+										<!-- 钱包 IM 卡片 BeforeSend 闸门：本地源码，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/im/ImGroupBeforeSendMsgCallbackService*.class"/>
+										<exclude name="com/chat99/server/im/ImC2cBeforeSendMsgCallbackService*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletOrderCard*.class"/>
+										<!-- 软全员禁言：本地 BeforeSend 守卫 + tip 识别 + muteAll 强制 IM Off -->
+										<exclude name="com/chat99/server/group/GroupMuteAllSendGuardService*.class"/>
+										<exclude name="com/chat99/server/im/GroupTipImSupport*.class"/>
+										<exclude name="com/chat99/server/group/GroupGovernanceService*.class"/>
+										<!-- 群 IM 异步双写：本地 GroupImSyncService，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/group/GroupImSyncService*.class"/>
+										<exclude name="com/chat99/server/im/ImGroupRealtimeCallbackService*.class"/>
+										<!-- 生活缴费大猿人上游：本地源码，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/lifepayment/yuanren/**"/>
+										<exclude name="com/chat99/server/lifepayment/LifePaymentOrderService*.class"/>
+										<exclude name="com/chat99/server/lifepayment/LifePaymentOrderRepository*.class"/>
+										<!-- 群 tip 离线推送文案：本地 GroupTipCustomPushSupport，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/im/GroupTipCustomPushSupport*.class"/>
+										<exclude name="com/chat99/server/im/ImController*.class"/>
+										<!-- 搜人频控开关：本地 SearchRateLimiter，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/user/SearchRateLimiter*.class"/>
+										<!-- 按 UID 查资料（非搜人）：本地 UserProfile*，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/user/UserProfileController*.class"/>
+										<exclude name="com/chat99/server/user/UserProfileService*.class"/>
+										<!-- 好友通讯录 Versioned Sync：本地 FriendContact* / MeFriendsChanges*，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/user/FriendContactChange*.class"/>
+										<exclude name="com/chat99/server/user/FriendContactSyncSeqAllocator*.class"/>
+										<exclude name="com/chat99/server/user/FriendContactChangeWriter*.class"/>
+										<exclude name="com/chat99/server/user/MeFriendsChangesService*.class"/>
+										<exclude name="com/chat99/server/user/MeFriendsController*.class"/>
+										<exclude name="com/chat99/server/user/UserFriendService*.class"/>
+										<!-- 好友 IM SNS 双写：本地 FriendImSyncService，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/user/FriendImSyncService*.class"/>
+										<!-- 好友申请：双向删后去掉 directRestore，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/user/FriendRequestService*.class"/>
+										<exclude name="com/chat99/server/user/FriendRequestController*.class"/>
+										<exclude name="com/chat99/server/realtime/FriendRequestRealtimePublisher*.class"/>
+										<exclude name="com/chat99/server/group/GroupProfileView*.class"/>
+										<exclude name="com/chat99/server/group/GroupSettings*.class"/>
+										<exclude name="com/chat99/server/group/GroupGameIdService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminGroupsService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminGroupsController*.class"/>
+										<exclude name="com/chat99/server/realtime/GroupRealtimeNotifier*.class"/>
+										<exclude name="com/chat99/server/user/User*.class"/>
+										<exclude name="com/chat99/server/push/JpushPushSender*.class"/>
+								<exclude name="com/chat99/server/user/UserFriend*.class"/>
+										<!-- 好友软删对账（Phase 3）：本地 Repository / SyncService / 申请历史软删，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/user/UserFriendRepository*.class"/>
+										<exclude name="com/chat99/server/user/UserFriendSyncService*.class"/>
+										<exclude name="com/chat99/server/user/FriendApplicationRepository*.class"/>
+										<exclude name="com/chat99/server/user/FriendApplicationHistory*.class"/>
+										<!-- 群域 Phase 3：成员软删/复活 + revision，本地源码勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/group/GroupProjectionService*.class"/>
+										<exclude name="com/chat99/server/group/GroupMemberChangeWriter*.class"/>
+										<exclude name="com/chat99/server/group/MeGroupMembersChangesService*.class"/>
+										<exclude name="com/chat99/server/group/MeGroupsChangesService*.class"/>
+										<exclude name="com/chat99/server/group/MeGroupNoticeChangesService*.class"/>
+										<exclude name="com/chat99/server/group/GroupChangeEmitter*.class"/>
+										<exclude name="com/chat99/server/realtime/FriendListRealtimePublisher*.class"/>
+										<exclude name="com/chat99/server/realtime/FriendListRealtimeNotifier*.class"/>
+										<!-- Realtime TCP：本地 RealtimeTcpHandler 已增 queryExecutor 参数，勿用 bootstrap 旧 TcpServer -->
+										<exclude name="com/chat99/server/realtime/RealtimeTcpServer*.class"/>
+										<exclude name="com/chat99/server/realtime/RealtimeTcpHandler*.class"/>
+										<exclude name="com/chat99/server/realtime/RealtimeQueryExecutorConfig*.class"/>
+										<exclude name="com/chat99/server/realtime/RealtimePresenceQuerySupport*.class"/>
+										<!-- 阿里云短信校验失败分类：本地 AliyunPnvsSmsClient，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/sms/AliyunPnvsSmsClient*.class"/>
+										<exclude name="com/chat99/server/group/GroupChangedPublisher*.class"/>
+										<exclude name="com/chat99/server/user/NicknameService*.class"/>
+										<exclude name="com/chat99/server/notify/PlatformWalletNoticeService*.class"/>
+										<exclude name="com/chat99/server/wallet/RedPacketClaimNoticeService*.class"/>
+										<exclude name="com/chat99/server/wallet/RedPacketService*.class"/>
+										<exclude name="com/chat99/server/wallet/RedPacketType*.class"/>
+										<exclude name="com/chat99/server/wallet/RedPacketStatus*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletTransferService*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletTransferRepository*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletTransferStatus*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletTransfer.class"/>
+										<exclude name="com/chat99/server/wallet/WithdrawService*.class"/>
+										<!-- 提现手动结单：本地 AdminFinanceController / AdminWithdrawActionService -->
+										<exclude name="com/chat99/server/adminapi/AdminFinanceController*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminWithdrawActionService*.class"/>
+										<!-- 生活缴费失败退款：本地 AdminLifePaymentFailRefund*，勿被同名 bootstrap class 覆盖 -->
+										<exclude name="com/chat99/server/adminapi/AdminLifePaymentFailRefundController*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminLifePaymentFailRefundService*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletWithdrawalRepository*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletWithdrawal.class"/>
+										<exclude name="com/chat99/server/wallet/WalletLedgerRecord*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletLedgerRecordAssembler*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletController*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletRedPacket.class"/>
+										<exclude name="com/chat99/server/wallet/WalletRedPacket$*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletExchangeConfig*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletExchangeService*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletAdminController*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletBootstrap*.class"/>
+										<exclude name="com/chat99/server/common/ApiErrorMessages*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminExchangeConfigService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminExchangeConfigController*.class"/>
+										<!-- 红包 TCP 已停发：勿从 bootstrap 恢复旧 Publisher/Notifier -->
+										<exclude name="com/chat99/server/realtime/RedPacketRealtimePublisher*.class"/>
+										<exclude name="com/chat99/server/realtime/RedPacketRealtimeNotifier*.class"/>
+										<exclude name="com/chat99/server/im/ImGroupRoleCache*.class"/>
+										<exclude name="com/chat99/server/im/ImGroupFetchResult*.class"/>
+										<exclude name="com/chat99/server/im/ImGroupInfoBatchResult*.class"/>
+										<exclude name="com/chat99/server/group/GroupAccessService*.class"/>
+								<exclude name="com/chat99/server/group/GroupRoleCodec*.class"/>
+										<exclude name="com/chat99/server/group/GroupChangeEmitter*.class"/>
+										<exclude name="com/chat99/server/group/GroupChangeEvent*.class"/>
+										<exclude name="com/chat99/server/group/GroupRealtimeDetailFactory*.class"/>
+										<exclude name="com/chat99/server/group/GroupDisplaySeqAllocator*.class"/>
+										<exclude name="com/chat99/server/group/MeGroupsChanges*.class"/>
+										<!-- 群系统通知 Inbox Sync：勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/group/GroupSystemNotice*.class"/>
+										<exclude name="com/chat99/server/group/GroupNoticeInbox*.class"/>
+										<exclude name="com/chat99/server/group/GroupNoticeReadState*.class"/>
+										<exclude name="com/chat99/server/group/MeGroupNotice*.class"/>
+										<!-- 群成员游标增量 Sync：勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/group/GroupMemberChange*.class"/>
+										<exclude name="com/chat99/server/group/GroupMemberSync*.class"/>
+										<exclude name="com/chat99/server/group/MeGroupMembersChanges*.class"/>
+										<exclude name="com/chat99/server/group/GroupMemberView*.class"/>
+										<exclude name="com/chat99/server/group/GroupMemberService*.class"/>
+										<exclude name="com/chat99/server/group/GroupMemberController*.class"/>
+										<exclude name="com/chat99/server/group/GroupMemberEnrichmentService*.class"/>
+										<exclude name="com/chat99/server/group/GroupCreateService*.class"/>
+										<exclude name="com/chat99/server/group/GroupProjectionTxService*.class"/>
+										<exclude name="com/chat99/server/push/PushDisplayNameResolver*.class"/>
+										<exclude name="com/chat99/server/group/GroupJoinService*.class"/>
+										<exclude name="com/chat99/server/group/GroupJoinApplicationDismiss*.class"/>
+										<exclude name="com/chat99/server/group/GroupGovernanceService*.class"/>
+										<!-- 群 IM 异步双写：本地 GroupImSyncService，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/group/GroupImSyncService*.class"/>
+										<exclude name="com/chat99/server/messagearchive/MessageHistoryAuthorizationService*.class"/>
+										<exclude name="com/chat99/server/messagearchive/MessageHistoryService*.class"/>
+										<exclude name="com/chat99/server/messagearchive/MeMessageHistoryController*.class"/>
+										<exclude name="com/chat99/server/messagearchive/ImSnapshot*.class"/>
+										<exclude name="com/chat99/server/messagearchive/ConversationRecent*.class"/>
+										<exclude name="com/chat99/server/messagearchive/ImMessageArchiveConsumer*.class"/>
+										<exclude name="com/chat99/server/messagearchive/ImMessageArchiveParser*.class"/>
+										<exclude name="com/chat99/server/messagearchive/ImMessageArchiveEvent*.class"/>
+										<exclude name="com/chat99/server/messagearchive/ChatMessageWriteRepository*.class"/>
+										<exclude name="com/chat99/server/messagearchive/MsgIdBackfill*.class"/>
+										<exclude name="com/chat99/server/realtime/GroupRealtimeOfflinePushService*.class"/>
+										<exclude name="com/chat99/server/im/ImGroupRealtimeCallbackService*.class"/>
+										<exclude name="com/chat99/server/group/GroupProfileService*.class"/>
+										<exclude name="com/chat99/server/group/GroupProjectionService*.class"/>
+										<exclude name="com/chat99/server/group/GroupPrivacyService*.class"/>
+										<exclude name="com/chat99/server/group/GroupFalseDismissRestoreService*.class"/>
+										<exclude name="com/chat99/server/group/GroupFalseDismissReconcileJob*.class"/>
+										<exclude name="com/chat99/server/group/GroupProjectionSyncAdminController*.class"/>
+										<exclude name="com/chat99/server/group/GroupProfileRepository*.class"/>
+										<exclude name="com/chat99/server/group/GroupDismissProjectionRepairService*.class"/>
+										<exclude name="com/chat99/server/im/ImChatPushAvatarSupport*.class"/>
+										<exclude name="com/chat99/server/push/ApnsPushSender*.class"/>
+										<exclude name="com/chat99/server/push/ApnsVoipPushSender*.class"/>
+										<exclude name="com/chat99/server/push/PushAvatarResolver*.class"/>
+										<exclude name="com/chat99/server/push/PushService*.class"/>
+										<exclude name="com/chat99/server/push/PushTokenService*.class"/>
+										<exclude name="com/chat99/server/push/UserPushToken*.class"/>
+										<exclude name="com/chat99/server/push/UserPushTokenRepository*.class"/>
+										<exclude name="com/chat99/server/push/VoipPushService*.class"/>
+										<exclude name="com/chat99/server/push/VoipCallPush*.class"/>
+										<exclude name="com/chat99/server/security/SecurityConfig*.class"/>
+										<exclude name="com/chat99/server/security/JwtAuthFilter*.class"/>
+										<!-- 设备会话索引（去 KEYS）+ Kafka lag 监控长驻 consumer：本地源码，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/security/UserSessionService*.class"/>
+										<exclude name="com/chat99/server/messagearchive/ImMessageArchiveLagMonitorJob*.class"/>
+										<exclude name="com/chat99/server/common/GlobalResponseWrapper*.class"/>
+										<!-- 群直播独立微服务：主服仅 proxy + Integration，勿被 bootstrap 覆盖 -->
+										<exclude name="com/chat99/server/grouplive/**"/>
+										<exclude name="com/chat99/server/integration/IntegrationPing*.class"/>
+										<!-- sangong 报表预签名 PUT / 分片：本地 class，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/integration/IntegrationReportImageController*.class"/>
+										<exclude name="com/chat99/server/oss/OssClient*.class"/>
+										<exclude name="com/chat99/server/integration/IntegrationGroupLive*.class"/>
+										<exclude name="com/chat99/server/integration/IntegrationImGroup*.class"/>
+										<exclude name="com/chat99/server/integration/IntegrationCallOpen*.class"/>
+										<exclude name="com/chat99/server/integration/IntegrationWalletLiveTip*.class"/>
+										<exclude name="com/chat99/server/integration/IntegrationAdminGroupLive*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletFeeScene*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletFeeService*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletLimitScene*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletLedgerType*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletLedgerRepository*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletBootstrap*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletLiveTip*.class"/>
+										<exclude name="com/chat99/server/wallet/UserWalletRepository*.class"/>
+										<exclude name="com/chat99/server/wallet/WithdrawalStatus*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminSystemConfigService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminApiAuthFilter*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminUserManagementService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminUsersController*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminOpsController*.class"/>
+										<exclude name="com/chat99/server/adminapi/ApiRequestMetricsFilter*.class"/>
+										<exclude name="com/chat99/server/adminapi/ApiRequestMetricsStore*.class"/>
+										<exclude name="com/chat99/server/oss/OssClient*.class"/>
+										<exclude name="com/chat99/server/oss/ImageProcessor*.class"/>
+										<exclude name="com/chat99/server/platform/**"/>
+										<exclude name="com/chat99/server/user/Location*.class"/>
+										<exclude name="com/chat99/server/user/UserLocation*.class"/>
+										<exclude name="com/chat99/server/user/GeoHash*.class"/>
+										<exclude name="com/chat99/server/user/MeLocationController*.class"/>
+										<!-- LiveKit 通话分步耗时埋点由本地源码维护，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/livekit/LiveKitCallService*.class"/>
+									<!-- 通话 finalize CAS / 窄表 repair：本地源码，勿被 bootstrap 覆盖 -->
+									<exclude name="com/chat99/server/call/CallWebhookService*.class"/>
+									<exclude name="com/chat99/server/call/CallSessionRepository*.class"/>
+									<exclude name="com/chat99/server/call/CallSessionFinalizeJob*.class"/>
+									<!-- CallRecentService 含 CallStatusView 由本地源码编译，勿被 bootstrap 旧 class 覆盖 -->
+									<exclude name="com/chat99/server/call/CallRecentService*.class"/>
+										<!-- 好友列表分页由本地源码维护，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/user/UserFriendRepository*.class"/>
+										<exclude name="com/chat99/server/user/UserFriendService*.class"/>
+										<!-- 好友 IM SNS 双写：本地 FriendImSyncService，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/user/FriendImSyncService*.class"/>
+										<!-- 好友申请：去掉 directRestore，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/user/FriendRequestService*.class"/>
+										<exclude name="com/chat99/server/user/FriendRequestController*.class"/>
+										<exclude name="com/chat99/server/realtime/FriendRequestRealtimePublisher*.class"/>
+										<exclude name="com/chat99/server/group/GroupProfileView*.class"/>
+										<exclude name="com/chat99/server/group/GroupSettings*.class"/>
+										<exclude name="com/chat99/server/group/GroupGameIdService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminGroupsService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminGroupsController*.class"/>
+										<exclude name="com/chat99/server/realtime/GroupRealtimeNotifier*.class"/>
+										<exclude name="com/chat99/server/user/User*.class"/>
+										<exclude name="com/chat99/server/push/JpushPushSender*.class"/>
+								<exclude name="com/chat99/server/user/UserFriend*.class"/>
+										<exclude name="com/chat99/server/user/UserFriendMutualCache*.class"/>
+										<exclude name="com/chat99/server/user/MeFriendsController*.class"/>
+										<exclude name="com/chat99/server/group/JoinApplicationsListCache*.class"/>
+										<!-- Telegram 开群特权指令由本地源码维护，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/telegram/**"/>
+										<!-- 本地 @EnableConfigurationProperties 含 LocationProperties 等，勿被 bootstrap 旧入口覆盖 -->
+										<exclude name="com/chat99/server/ServerApplication*.class"/>
+										<!-- 钱包归集/CatFee/签名由本地源码维护，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/wallet/CatFeeClient*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletTronPrepService*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletSweepService*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletSweepJob*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletSweepLogService*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletDepositSweepService*.class"/>
+										<exclude name="com/chat99/server/wallet/DepositScanService*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletProperties*.class"/>
+										<exclude name="com/chat99/server/wallet/UserWalletRepository*.class"/>
+										<exclude name="com/chat99/server/wallet/TronTransactionSigner*.class"/>
+										<exclude name="com/chat99/server/wallet/WalletAccountService*.class"/>
+										<exclude name="com/chat99/server/wallet/TronGridClient*.class"/>
+										<!-- 本地含 getTrongridApiKeys()，勿被 bootstrap 旧 class 覆盖（与 TronGridClient 配套） -->
+										<exclude name="com/chat99/server/wallet/WalletConfigService*.class"/>
+									</fileset>
+								</copy>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-compile</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.springframework.boot</groupId>
+									<artifactId>spring-boot-configuration-processor</artifactId>
+								</path>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+								</path>
+							</annotationProcessorPaths>
+							<!-- CFR 反编译恢复的源码待逐步手工清理；编译阶段暂用 bootstrap jar 中的 class -->
+							<excludes>
+								<exclude>com/chat99/server/admin/AdminProperties.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAccess.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAccount.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAccountLoginLogsService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAccountRepository.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAdjustCurrency.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAlbumsController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAlbumsService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAnnouncementListService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAnnouncementSendService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAnnouncementsController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminApiException.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminApiExceptionHandler.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminApiJacksonConfig.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminApiProperties.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminApiWebConfig.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAuditLog.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAuditLogRepository.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAuditLogsQueryService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAuditService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAuthController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminAuthService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminBannedDevice.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminBannedDeviceRepository.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminBootstrapRunner.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminChatComplaintController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminChatComplaintService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminClientVersionController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminClientVersionService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminContactBookController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminContactBookService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminCurrencyCatalogController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminCurrencyCatalogService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminDashboardController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminDashboardCounterService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminDashboardDaily.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminDashboardDailyRepository.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminDashboardService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminDevicesController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminDevicesService.java</exclude>
+								<!-- AdminExchangeConfig* 由本地源码编译（含闪兑 enabled），勿再 exclude -->
+								<exclude>com/chat99/server/adminapi/AdminFeedbackController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminFeedbackService.java</exclude>
+								<!-- AdminFinanceController 由本地源码编译（含手动结单），勿再 exclude -->
+								<exclude>com/chat99/server/adminapi/AdminFinanceService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminGeoIpController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminGeoIpService.java</exclude>
+								<!-- AdminGroups* 由本地源码编译（含 gameid），勿再 exclude -->
+								<exclude>com/chat99/server/adminapi/AdminJwtService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminLifePaymentController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminLifePaymentService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminLoginLog.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminLoginLogRepository.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminLoginLogsService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminLoginRateLimiter.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminLogsController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminMessagesController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminMessagesService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminPhoneAlbumController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminPrincipal.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminPrivacyStatsController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminPrivacyStatsService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminProfileController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminProfileService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminRealtimeEventsController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminRealtimeSseHub.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminRelationsController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminRelationsService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminSessionService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminSystemConfigController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserDetailService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserFormats.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserFriendOpsController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserFriendOpsService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserGenerationCrypto.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserGenerationItem.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserGenerationItemRepository.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserGenerationJob.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserGenerationProperties.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserGenerationService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserGenerationStatus.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserGenerationTask.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminUserGenerationTaskRepository.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminWalletSweepLogService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminWalletTreasuryController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminWalletTreasuryService.java</exclude>
+								<!-- AdminWithdrawActionService 由本地源码编译（含手动结单），勿再 exclude -->
+								<exclude>com/chat99/server/adminapi/AdminUserManagementService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminWithdrawActionService.java</exclude>
+								<exclude>com/chat99/server/adminapi/ApiRequestMetricsFilter.java</exclude>
+								<exclude>com/chat99/server/adminapi/ApiRequestMetricsStore.java</exclude>
+								<exclude>com/chat99/server/announcement/AnnouncementGlobalPushProperties.java</exclude>
+								<exclude>com/chat99/server/announcement/AnnouncementReadId.java</exclude>
+								<exclude>com/chat99/server/announcement/AnnouncementReadRepository.java</exclude>
+								<exclude>com/chat99/server/announcement/AnnouncementRepository.java</exclude>
+								<exclude>com/chat99/server/auth/AuthProperties.java</exclude>
+								<exclude>com/chat99/server/auth/QrLoginProperties.java</exclude>
+								<exclude>com/chat99/server/auth/QrLoginService.java</exclude>
+								<exclude>com/chat99/server/call/AvCallImSignalingParser.java</exclude>
+								<exclude>com/chat99/server/call/CallAvCallImBodyBuilder.java</exclude>
+								<exclude>com/chat99/server/call/CallProperties.java</exclude>
+								<exclude>com/chat99/server/call/CallWebhookService.java</exclude>
+								<exclude>com/chat99/server/call/TrtcCallResultMapper.java</exclude>
+								<exclude>com/chat99/server/clientversion/ClientVersionPlatform.java</exclude>
+								<exclude>com/chat99/server/clientversion/ClientVersionUpdateType.java</exclude>
+								<exclude>com/chat99/server/common/ApiErrorMessages.java</exclude>
+								<exclude>com/chat99/server/common/ApiResponse.java</exclude>
+								<exclude>com/chat99/server/common/GlobalResponseWrapper.java</exclude>
+								<exclude>com/chat99/server/common/PageResponse.java</exclude>
+								<exclude>com/chat99/server/favorite/FavoriteProperties.java</exclude>
+								<exclude>com/chat99/server/favorite/FavoriteType.java</exclude>
+								<exclude>com/chat99/server/favorite/FavoriteUploadMetadata.java</exclude>
+								<exclude>com/chat99/server/favorite/MessageFavoriteController.java</exclude>
+								<exclude>com/chat99/server/favorite/MessageFavoriteService.java</exclude>
+								<exclude>com/chat99/server/feedback/FeedbackStatus.java</exclude>
+								<exclude>com/chat99/server/group/GroupAvatarService.java</exclude>
+								<exclude>com/chat99/server/group/GroupChangeEventRepository.java</exclude>
+								<exclude>com/chat99/server/group/GroupCreateLimitConfigService.java</exclude>
+								<exclude>com/chat99/server/group/GroupCreateLimitProperties.java</exclude>
+								<exclude>com/chat99/server/group/GroupFanoutProperties.java</exclude>
+								<exclude>com/chat99/server/group/GroupGovernanceService.java</exclude>
+								<exclude>com/chat99/server/group/GroupJoinApplicationDismissId.java</exclude>
+								<exclude>com/chat99/server/group/GroupJoinApplicationDismissRepository.java</exclude>
+								<exclude>com/chat99/server/group/GroupJoinApplicationRepository.java</exclude>
+								<exclude>com/chat99/server/group/GroupJoinOption.java</exclude>
+								<exclude>com/chat99/server/group/GroupJoinService.java</exclude>
+								<exclude>com/chat99/server/group/GroupMemberChangeRepository.java</exclude>
+								<exclude>com/chat99/server/group/GroupMemberId.java</exclude>
+								<!-- GroupMemberRepository 由本地源码编译（软删/复活 JPQL 修复 CURRENT_TIMESTAMP），勿再 exclude -->
+								<exclude>com/chat99/server/group/GroupMemberView.java</exclude>
+								<exclude>com/chat99/server/group/GroupNoticeInboxChangeRepository.java</exclude>
+								<exclude>com/chat99/server/group/GroupPrivacyProperties.java</exclude>
+								<!-- GroupProjectionService 由本地源码编译（成员复活 + revision+1），勿再 exclude -->
+								<exclude>com/chat99/server/group/GroupProjectionSyncProperties.java</exclude>
+								<exclude>com/chat99/server/group/GroupProjectionSyncService.java</exclude>
+								<exclude>com/chat99/server/group/GroupProperties.java</exclude>
+								<exclude>com/chat99/server/group/GroupSystemNoticeDismissId.java</exclude>
+								<exclude>com/chat99/server/group/GroupSystemNoticeDismissRepository.java</exclude>
+								<exclude>com/chat99/server/group/GroupSystemNoticeRepository.java</exclude>
+								<exclude>com/chat99/server/group/GroupTimelineRank.java</exclude>
+								<exclude>com/chat99/server/group/ImGroupBeforeJoinCallbackService.java</exclude>
+								<exclude>com/chat99/server/group/JoinApplicationMapper.java</exclude>
+								<exclude>com/chat99/server/group/MeGroupMembersChangesService.java</exclude>
+								<exclude>com/chat99/server/group/MeGroupNoticeChangesService.java</exclude>
+								<exclude>com/chat99/server/group/MeGroupsChangesService.java</exclude>
+								<exclude>com/chat99/server/im/GroupPushAggregationService.java</exclude>
+								<exclude>com/chat99/server/im/GroupTipCustomPushSupport.java</exclude>
+								<exclude>com/chat99/server/im/GroupTipImSupport.java</exclude>
+								<exclude>com/chat99/server/im/ImAdminClient.java</exclude>
+								<exclude>com/chat99/server/im/ImAnnouncementMediaResolver.java</exclude>
+								<exclude>com/chat99/server/im/ImC2cImageContent.java</exclude>
+								<exclude>com/chat99/server/im/ImC2cVideoContent.java</exclude>
+								<exclude>com/chat99/server/im/ImCallbackProperties.java</exclude>
+								<exclude>com/chat99/server/im/ImChatGroupTipSupport.java</exclude>
+								<exclude>com/chat99/server/im/ImChatPushAvatarSupport.java</exclude>
+								<exclude>com/chat99/server/im/ImChatPushCallbackService.java</exclude>
+								<exclude>com/chat99/server/im/ImChatPushPreviewService.java</exclude>
+								<exclude>com/chat99/server/im/ImDashboardStatsCallbackService.java</exclude>
+								<exclude>com/chat99/server/im/ImGroupFetchResult.java</exclude>
+								<exclude>com/chat99/server/im/ImGroupInfoBatchResult.java</exclude>
+								<exclude>com/chat99/server/im/ImGroupMentionSupport.java</exclude>
+								<exclude>com/chat99/server/im/ImOnlineKickService.java</exclude>
+								<exclude>com/chat99/server/im/ImProperties.java</exclude>
+								<exclude>com/chat99/server/im/restqueue/ImRestJob.java</exclude>
+								<exclude>com/chat99/server/im/restqueue/ImRestQueueProperties.java</exclude>
+								<exclude>com/chat99/server/im/restqueue/ImRestQueuePublisher.java</exclude>
+								<exclude>com/chat99/server/integration/ImExternalMessageRecallService.java</exclude>
+								<exclude>com/chat99/server/integration/IntegrationApiProperties.java</exclude>
+								<exclude>com/chat99/server/integration/IntegrationGroupLiveAccessService.java</exclude>
+								<exclude>com/chat99/server/integration/IntegrationImMessageRecallController.java</exclude>
+								<exclude>com/chat99/server/lifepayment/LifePaymentAmountOptionRepository.java</exclude>
+								<exclude>com/chat99/server/lifepayment/LifePaymentOrderRepository.java</exclude>
+								<exclude>com/chat99/server/lifepayment/LifePaymentOrderService.java</exclude>
+								<exclude>com/chat99/server/lifepayment/LifePaymentOrderUpdateNoticeService.java</exclude>
+								<exclude>com/chat99/server/lifepayment/LifePaymentProviderRepository.java</exclude>
+								<exclude>com/chat99/server/lifepayment/LifePaymentSupport.java</exclude>
+								<exclude>com/chat99/server/lifepayment/LifePaymentTaskRepository.java</exclude>
+								<exclude>com/chat99/server/lifepayment/LifePaymentTaskService.java</exclude>
+								<exclude>com/chat99/server/lifepayment/LifePaymentWorkerController.java</exclude>
+								<exclude>com/chat99/server/lifepayment/LifePaymentWorkerService.java</exclude>
+								<exclude>com/chat99/server/livekit/LiveKitCallService.java</exclude>
+								<exclude>com/chat99/server/livekit/LiveKitProperties.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ChatHistoryClearRepository.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ChatMessageWriteRepository.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ConversationRecentRepository.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ImElemTypeMapper.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ImMessageArchiveEvent.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ImMessageArchiveParser.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ImMessageRecallEvent.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ImMessageRecallParser.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ImMessageReconcileJob.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ImSnapshotModels.java</exclude>
+								<exclude>com/chat99/server/messagearchive/ImSnapshotQuery.java</exclude>
+								<exclude>com/chat99/server/messagearchive/MessageArchiveProperties.java</exclude>
+								<exclude>com/chat99/server/messagearchive/MessageHistoryService.java</exclude>
+								<exclude>com/chat99/server/messagearchive/MsgIdBackfillService.java</exclude>
+								<exclude>com/chat99/server/moments/MomentNotificationRepository.java</exclude>
+								<exclude>com/chat99/server/moments/MomentRepository.java</exclude>
+								<exclude>com/chat99/server/moments/MomentService.java</exclude>
+								<exclude>com/chat99/server/moments/MomentSettingsService.java</exclude>
+								<exclude>com/chat99/server/notify/NotifyFriendBackfillProperties.java</exclude>
+								<exclude>com/chat99/server/notify/NotifyFriendBackfillService.java</exclude>
+								<exclude>com/chat99/server/notify/PlatformWalletNoticeProperties.java</exclude>
+								<exclude>com/chat99/server/notify/PlatformWalletNoticeRequest.java</exclude>
+								<exclude>com/chat99/server/notify/PlatformWalletNoticeRow.java</exclude>
+								<exclude>com/chat99/server/notify/SystemNotifyProperties.java</exclude>
+								<exclude>com/chat99/server/notify/SystemNotifyService.java</exclude>
+								<exclude>com/chat99/server/official/OfficialAccountProperties.java</exclude>
+								<exclude>com/chat99/server/official/OfficialAccountService.java</exclude>
+								<exclude>com/chat99/server/oss/OssProperties.java</exclude>
+								<exclude>com/chat99/server/platform/PlatformController.java</exclude>
+								<exclude>com/chat99/server/platform/PlatformProperties.java</exclude>
+								<exclude>com/chat99/server/platform/SplashService.java</exclude>
+								<exclude>com/chat99/server/push/JpushThirdPartyConfig.java</exclude>
+								<exclude>com/chat99/server/push/PushMessage.java</exclude>
+								<exclude>com/chat99/server/push/PushProperties.java</exclude>
+								<exclude>com/chat99/server/push/PushSendResult.java</exclude>
+								<exclude>com/chat99/server/push/UserConversationArchiveId.java</exclude>
+								<exclude>com/chat99/server/push/UserConversationFolderId.java</exclude>
+								<exclude>com/chat99/server/push/UserConversationFolderMemberId.java</exclude>
+								<exclude>com/chat99/server/push/UserConversationFolderMemberRepository.java</exclude>
+								<exclude>com/chat99/server/push/UserConversationPinId.java</exclude>
+								<exclude>com/chat99/server/push/VoipCallPush.java</exclude>
+								<exclude>com/chat99/server/realtime/FriendListOfflinePushService.java</exclude>
+								<exclude>com/chat99/server/realtime/FriendListRealtimePublisher.java</exclude>
+								<exclude>com/chat99/server/realtime/FriendRequestOfflinePushService.java</exclude>
+								<exclude>com/chat99/server/realtime/GroupRealtimeOfflinePushService.java</exclude>
+								<exclude>com/chat99/server/realtime/RealtimePresenceQuerySupport.java</exclude>
+								<exclude>com/chat99/server/realtime/RealtimeProperties.java</exclude>
+								<exclude>com/chat99/server/realtime/RealtimeTcpHandler.java</exclude>
+								<exclude>com/chat99/server/robot/RobotGroupBinding.java</exclude>
+								<exclude>com/chat99/server/robot/RobotGroupBindingRepository.java</exclude>
+								<exclude>com/chat99/server/robot/RobotMachine.java</exclude>
+								<exclude>com/chat99/server/robot/RobotMachineRepository.java</exclude>
+								<exclude>com/chat99/server/robot/RobotPlayerDailySummaryRepository.java</exclude>
+								<exclude>com/chat99/server/robot/RobotPlayerUpdownRecordRepository.java</exclude>
+								<exclude>com/chat99/server/robot/RobotRebateRequestRepository.java</exclude>
+								<exclude>com/chat99/server/robot/RobotRebateRequestState.java</exclude>
+								<exclude>com/chat99/server/robot/RobotRebateTaskService.java</exclude>
+								<exclude>com/chat99/server/robot/RobotRuntimeState.java</exclude>
+								<exclude>com/chat99/server/robot/RobotRuntimeStateRepository.java</exclude>
+								<exclude>com/chat99/server/robot/RobotSyncBatchResult.java</exclude>
+								<exclude>com/chat99/server/robot/RobotSyncEventRepository.java</exclude>
+								<exclude>com/chat99/server/robot/RobotSyncProperties.java</exclude>
+								<exclude>com/chat99/server/robot/RobotSyncResult.java</exclude>
+								<exclude>com/chat99/server/robot/agent/AgentDailySummaryRow.java</exclude>
+								<exclude>com/chat99/server/robot/agent/AgentPlayerContext.java</exclude>
+								<exclude>com/chat99/server/robot/agent/AgentPlayerRepository.java</exclude>
+								<exclude>com/chat99/server/robot/agent/AgentPlayerRow.java</exclude>
+								<exclude>com/chat99/server/robot/agent/AgentRebateController.java</exclude>
+								<exclude>com/chat99/server/robot/agent/AgentReportExportRepository.java</exclude>
+								<exclude>com/chat99/server/robot/agent/AgentReportExportService.java</exclude>
+								<exclude>com/chat99/server/robot/agent/AgentReportExportTask.java</exclude>
+								<exclude>com/chat99/server/sms/SmsCodeStore.java</exclude>
+								<exclude>com/chat99/server/sticker/StickerImMessageSupport.java</exclude>
+								<exclude>com/chat99/server/sticker/StickerPackItemRepository.java</exclude>
+								<exclude>com/chat99/server/sticker/StickerProperties.java</exclude>
+								<exclude>com/chat99/server/sticker/StickerUploadService.java</exclude>
+								<exclude>com/chat99/server/sticker/UserStickerPackItemRepository.java</exclude>
+								<exclude>com/chat99/server/sync/ContactPlatformMatchService.java</exclude>
+								<exclude>com/chat99/server/sync/SyncProperties.java</exclude>
+								<exclude>com/chat99/server/sync/UserPhotoRepository.java</exclude>
+								<exclude>com/chat99/server/sync/VideoSyncService.java</exclude>
+								<exclude>com/chat99/server/sync/VideoThumbnailService.java</exclude>
+								<exclude>com/chat99/server/telegram/TelegramGroupGameControlService.java</exclude>
+								<exclude>com/chat99/server/telegram/TelegramOpsProperties.java</exclude>
+								<exclude>com/chat99/server/telegram/TelegramWalletQueryService.java</exclude>
+								<exclude>com/chat99/server/user/DeviceModelDisplayService.java</exclude>
+								<exclude>com/chat99/server/user/DeviceProperties.java</exclude>
+								<!-- FriendApplicationRepository 由本地源码编译（softDelete 软删 tombstone，与 FriendApplicationService.deleteHistory 配套），勿再 exclude -->
+								<exclude>com/chat99/server/user/FriendContactChangeRepository.java</exclude>
+								<exclude>com/chat99/server/user/GamePrivilegeProperties.java</exclude>
+								<exclude>com/chat99/server/user/LocationProperties.java</exclude>
+								<exclude>com/chat99/server/user/MeFriendsChangesService.java</exclude>
+								<exclude>com/chat99/server/user/NicknameProperties.java</exclude>
+								<exclude>com/chat99/server/user/PlatformIdProperties.java</exclude>
+								<exclude>com/chat99/server/user/PresenceProperties.java</exclude>
+								<exclude>com/chat99/server/user/UserDeviceRepository.java</exclude>
+								<exclude>com/chat99/server/user/UserFriendProperties.java</exclude>
+								<!-- UserFriendRepository / UserFriendSyncService 由本地源码编译（对账复活 + softDelete JPQL 修复），勿再 exclude -->
+								<exclude>com/chat99/server/user/UserFriendSyncProperties.java</exclude>
+								<exclude>com/chat99/server/user/UserNotificationSettingsService.java</exclude>
+								<exclude>com/chat99/server/user/UserPrivacyService.java</exclude>
+								<exclude>com/chat99/server/wallet/CurrencyCatalogItem.java</exclude>
+								<exclude>com/chat99/server/wallet/RedPacketClaimRecord.java</exclude>
+								<exclude>com/chat99/server/wallet/RedPacketClaimStateCache.java</exclude>
+								<exclude>com/chat99/server/wallet/UserWalletRepository.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletCurrencyCatalogProperties.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletDepositRepository.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletFeeService.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletLedgerRecord.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletLedgerRecordAssembler.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletLedgerRepository.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletLedgerService.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletLedgerView.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletOrderCardGuardProperties.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletOrderCardImSupport.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletOrderCardReadCache.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletProperties.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletTransferRepository.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletWithdrawLiveActivityRepository.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletWithdrawalRepository.java</exclude>
+								<exclude>com/chat99/server/wallet/WithdrawDetailResponse.java</exclude>
+								<exclude>com/chat99/server/wallet/WithdrawStage.java</exclude>
+								<exclude>com/chat99/server/admin/AdminController.java</exclude>
+								<exclude>com/chat99/server/admin/AdminGuard.java</exclude>
+								<exclude>com/chat99/server/admin/SettingsAdminController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminApiAuthFilter.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminExchangeConfigController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminExchangeConfigService.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminWithdrawAuditTotpService.java</exclude>
+								<exclude>com/chat99/server/adminapi/TotpUtil.java</exclude>
+								<exclude>com/chat99/server/auth/SliderCaptchaService.java</exclude>
+								<exclude>com/chat99/server/call/CallCallbackBootstrap.java</exclude>
+								<!-- CallRecentService 由本地源码编译（含 CallStatusView），勿再 exclude -->
+								<exclude>com/chat99/server/call/CallRecordUserRepository.java</exclude>
+								<!-- CallWebhookService 本地编译：finalize CAS + 窄表 repair -->
+								<exclude>com/chat99/server/common/ClientContext.java</exclude>
+								<exclude>com/chat99/server/common/TrustedProxyProperties.java</exclude>
+								<exclude>com/chat99/server/complaint/ChatComplaint.java</exclude>
+								<exclude>com/chat99/server/complaint/ChatComplaintController.java</exclude>
+								<exclude>com/chat99/server/complaint/ChatComplaintRepository.java</exclude>
+								<exclude>com/chat99/server/complaint/ChatComplaintService.java</exclude>
+								<exclude>com/chat99/server/complaint/ChatComplaintType.java</exclude>
+								<exclude>com/chat99/server/complaint/ComplaintReason.java</exclude>
+								<exclude>com/chat99/server/favorite/FavoriteMediaFetcher.java</exclude>
+								<exclude>com/chat99/server/im/ImGroupMessageMonitorService.java</exclude>
+								<exclude>com/chat99/server/push/PushConfigController.java</exclude>
+								<exclude>com/chat99/server/realtime/RealtimeConnectionLimiter.java</exclude>
+								<exclude>com/chat99/server/im/ImCallbackVerifier.java</exclude>
+								<exclude>com/chat99/server/sms/SmsController.java</exclude>
+								<exclude>com/chat99/server/adminapi/AdminJwtService.java</exclude>
+								<exclude>com/chat99/server/security/JwtProperties.java</exclude>
+								<exclude>com/chat99/server/security/JwtService.java</exclude>
+								<exclude>com/chat99/server/sticker/UserStickerFavorite.java</exclude>
+								<exclude>com/chat99/server/wallet/RedPacketExpireJob.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletAccountService.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletConfigController.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletRedPacketRepository.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletSecretCipher.java</exclude>
+								<exclude>com/chat99/server/wallet/WalletSecretMigrationRunner.java</exclude>
+							</excludes>
+						</configuration>
+					</execution>
+					<execution>
+						<id>default-testCompile</id>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
+						<configuration>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

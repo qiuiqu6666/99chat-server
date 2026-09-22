@@ -1,0 +1,42 @@
+# Staging / single-node LiveKit for 99chat.
+# Usage:
+#   cp .env.example .env   # edit keys + domain
+#   docker compose up -d
+#
+# Clients connect to wss://${LIVEKIT_DOMAIN} (terminate TLS at nginx/caddy).
+# Point chat99 LIVEKIT_HOST to that wss URL.
+
+services:
+  livekit:
+    image: livekit/livekit-server:v1.9.0
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    env_file:
+      - .env
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7880:7880"           # HTTP / WS (put behind TLS reverse proxy)
+      - "7881:7881"           # TCP ICE / RTC
+      - "50000-50100:50000-50100/udp"  # UDP media (widen in production)
+    network_mode: host
+    # When using host networking, published ports above are ignored;
+    # keep them documented for non-host deployments.
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    profiles: ["tls"]
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - livekit
+
+volumes:
+  caddy_data:
+  caddy_config:

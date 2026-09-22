@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-09-16T00:47:51Z",
+  "processed": 2601,
+  "planned": 2601,
+  "add_ok": 2376,
+  "add_fail": 0,
+  "remark_ok": 2600,
+  "remark_fail": 1,
+  "skipped_remark_after_add_fail": 0,
+  "duration_ms": 689278,
+  "delay_ms": 50,
+  "rest_base": "https://console.tim.qq.com/v4/",
+  "sdk_app_id": 1600155864
+}

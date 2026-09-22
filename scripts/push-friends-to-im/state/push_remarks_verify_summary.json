@@ -1,0 +1,11 @@
+{
+  "generated_at": "2026-09-16T00:48:19Z",
+  "checked_edges": 2601,
+  "remark_ok": 2601,
+  "remark_fail": 0,
+  "not_friend": 0,
+  "duration_ms": 15661,
+  "samples": [],
+  "sdk_app_id": 1600155864,
+  "rest_base": "https://console.tim.qq.com/v4/"
+}

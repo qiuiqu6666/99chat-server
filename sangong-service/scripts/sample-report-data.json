@@ -1,0 +1,130 @@
+{
+  "points": {
+    "users": [
+      {"imUserId": "u1", "nickname": "小明", "balance": 1200},
+      {"imUserId": "u2", "nickname": "阿豪✨", "balance": -800},
+      {"imUserId": "u3", "nickname": "Tom88", "balance": 350},
+      {"imUserId": "u4", "nickname": "老王", "balance": -350},
+      {"imUserId": "u5", "nickname": "夜猫子2号", "balance": 90}
+    ]
+  },
+  "bet": {
+    "bankerDoor": 3,
+    "bankerNickname": "庄主大人",
+    "bankerImUserId": "banker1",
+    "doorCount": 6,
+    "doorTotals": {"1": 300, "2": 150, "3": 0, "4": 500, "5": 0, "6": 80},
+    "grandTotal": 1030,
+    "betCount": 9,
+    "titleSuffix": "",
+    "users": [
+      {"imUserId": "u1", "nickname": "小明", "doors": {"1": 100, "4": 200}, "total": 300},
+      {"imUserId": "u2", "nickname": "阿豪✨", "doors": {"2": 150}, "total": 150},
+      {"imUserId": "u3", "nickname": "Tom88", "doors": {"1": 200, "4": 300, "6": 80}, "total": 580}
+    ]
+  },
+  "settle": {
+    "periodNo": 12,
+    "bankerUserId": 9,
+    "bankerDoor": 3,
+    "bankerNickname": "庄主大人",
+    "bankerImUserId": "banker1",
+    "bankerHand": {"amount": "9点", "handLabel": "9点"},
+    "doorCount": 6,
+    "doorTotals": {"1": 300, "2": 150, "3": 0, "4": 500, "5": 0, "6": 80},
+    "grandTotal": 1030,
+    "rakePercent": 5,
+    "rake": 51,
+    "coBankCount": 2,
+    "bankerEat": 380,
+    "bankerPay": 650,
+    "mainBankerNet": -161,
+    "bankerBalanceBefore": 5161,
+    "bankerBalanceAfter": 5000,
+    "doorMultipliers": {"1": "1.0", "2": "-1.0", "3": "", "4": "-1.0", "5": "", "6": "1.0"},
+    "doorAmounts": {"1": "300", "2": "-150", "3": "", "4": "-500", "5": "", "6": "80"},
+    "doorPoints": {"1": "3点", "2": "双公", "3": "9点", "4": "三公", "5": "1点", "6": "7点"},
+    "players": [
+      {"userId": 1, "imUserId": "u1", "nickname": "小明", "net": 200,
+       "doorBets": {"1": 100, "4": 200}, "balanceBefore": 1000, "balanceAfter": 1200},
+      {"userId": 2, "imUserId": "u2", "nickname": "阿豪✨", "net": -150,
+       "doorBets": {"2": 150}, "balanceBefore": -650, "balanceAfter": -800},
+      {"userId": 3, "imUserId": "u3", "nickname": "Tom88", "net": 180,
+       "doorBets": {"1": 200, "4": 300, "6": 80}, "balanceBefore": 170, "balanceAfter": 350}
+    ],
+    "bankers": [
+      {"userId": 9, "imUserId": "banker1", "nickname": "庄主大人", "amount": 600,
+       "sharePercent": 60, "net": -97, "balanceBefore": 5097, "balanceAfter": 5000,
+       "betShare": 618, "rakeShare": 30},
+      {"userId": 10, "imUserId": "banker2", "nickname": "合庄小弟", "amount": 400,
+       "sharePercent": 40, "net": -64, "balanceBefore": 2064, "balanceAfter": 2000,
+       "betShare": 412, "rakeShare": 20}
+    ]
+  },
+  "trend": {
+    "doorCount": 6,
+    "rows": [
+      {"periodNo": 10, "time": "14:05", "bankerDoor": 2,
+       "doors": {
+         "1": {"amount": "3点", "compare": "player"},
+         "2": {"amount": "双公", "compare": "banker"},
+         "3": {"amount": "9点", "compare": "banker"},
+         "4": {"amount": "三公", "compare": "player"},
+         "5": {"amount": "1点", "compare": "banker"},
+         "6": {"amount": "7点", "compare": "player"}
+       }},
+      {"periodNo": 11, "time": "14:12", "bankerDoor": 5,
+       "doors": {
+         "1": {"amount": "6点", "compare": "banker"},
+         "2": {"amount": "0点", "compare": "banker"},
+         "3": {"amount": "双公", "compare": "player"},
+         "4": {"amount": "8点", "compare": "player"},
+         "5": {"amount": "9点", "compare": "banker"},
+         "6": {"amount": "2点", "compare": "banker"}
+       }},
+      {"periodNo": null, "time": "", "bankerDoor": 0, "placeholder": true,
+       "doors": {
+         "1": {"amount": null, "compare": null},
+         "2": {"amount": null, "compare": null},
+         "3": {"amount": null, "compare": null},
+         "4": {"amount": null, "compare": null},
+         "5": {"amount": null, "compare": null},
+         "6": {"amount": null, "compare": null}
+       }}
+    ]
+  },
+  "bill": {
+    "title": "三公",
+    "periodNo": 12,
+    "currentRound": {"time": "07-18 14:12:00", "roundCount": 2, "betAmount": 1030,
+                     "packageFee": "3.00", "rake": 62},
+    "sessionTotal": {"roundCount": 2, "betAmount": 2100, "packageFee": "6.00", "rake": 126},
+    "personalGroups": [
+      {"groupKey": "0",
+       "players": [
+         {"userId": 1, "imUserId": "u1", "nickname": "小明", "roundCount": 2, "betAmount": 600,
+          "rebate": 0, "creditTotal": 500, "debitTotal": 0, "net": 200, "balanceAfter": 1200},
+         {"userId": 2, "imUserId": "u2", "nickname": "阿豪✨", "roundCount": 1, "betAmount": 150,
+          "rebate": 0, "creditTotal": 0, "debitTotal": 300, "net": -150, "balanceAfter": -800}
+       ],
+       "totals": {"roundCount": 3, "betAmount": 750, "rebate": 0, "creditTotal": 500,
+                  "debitTotal": 300, "net": 50, "balanceAfter": 400}}
+    ],
+    "bankerGroups": [
+      {"groupKey": "0",
+       "players": [
+         {"userId": 9, "imUserId": "banker1", "nickname": "庄主大人", "roundCount": 2,
+          "betAmount": 2100, "rebate": 126, "net": -161, "balanceAfter": 5000}
+       ],
+       "totals": {"roundCount": 2, "betAmount": 2100, "rebate": 126, "net": -161, "balanceAfter": 5000}}
+    ],
+    "ledgerGroups": [
+      {"groupKey": "0",
+       "players": [
+         {"userId": 1, "imUserId": "u1", "nickname": "小明", "creditTotal": 500, "debitTotal": 200,
+          "net": 300, "balanceAfter": 1200}
+       ],
+       "totals": {"creditTotal": 500, "debitTotal": 200, "net": 300, "balanceAfter": 1200}}
+    ]
+  }
+}

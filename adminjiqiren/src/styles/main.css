@@ -1,0 +1,29 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f3f5f8;
+  color: #1f2937;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: linear-gradient(160deg, #eef2f7 0%, #f7f8fb 45%, #e8eef6 100%);
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Element Plus 日期面板在窄屏上避免撑破视口 */
+.el-picker__popper,
+.el-date-range-picker {
+  max-width: calc(100vw - 16px);
+}

@@ -1,0 +1,19 @@
+chat99:
+  sms:
+    smsbao:
+      base-url: https://api.smsbao.com
+    devMode: false
+    rate:
+      phone-per-minute: 1
+      phone-per-day: 10
+      ip-per-minute: 5
+  defaults:
+    avatar-url: https://99chat.oss-cn-hongkong.aliyuncs.com/moren/default_c2c_head.png
+  admin:
+    ip-whitelist: 127.0.0.1,0:0:0:0:0:0:0:1
+
+tencent:
+  captcha:
+    enabled: true
+    app-id: 189964941
+    app-secret-key: EpS6KRVqH9VY6e3QOXycqxx5V

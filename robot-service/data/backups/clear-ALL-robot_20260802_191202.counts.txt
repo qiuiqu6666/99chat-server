@@ -1,0 +1,18 @@
+Tables_in_jiqiren
+agent_report_export_task
+robot_group_binding
+robot_machine
+robot_player_daily_summary
+robot_player_snapshot
+robot_player_updown_record
+robot_runtime_state
+robot_sync_event
+t	c
+robot_machine	46
+robot_group_binding	2
+robot_player_snapshot	435
+robot_player_daily_summary	134
+robot_player_updown_record	0
+robot_runtime_state	6
+robot_sync_event	1683
+agent_report_export_task	0

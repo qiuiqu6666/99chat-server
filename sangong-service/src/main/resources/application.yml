@@ -1,0 +1,64 @@
+server:
+  port: ${SANGONG_PORT:8088}
+  # 默认只绑内网回环：对外统一从主服务 /sangong/** 入口访问
+  address: ${SANGONG_BIND:127.0.0.1}
+
+spring:
+  application:
+    name: sangong-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:127.0.0.1:9092}
+    consumer:
+      auto-offset-reset: latest
+      enable-auto-commit: true
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  datasource:
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_DATABASE:sangong}?sslMode=${DB_SSL_MODE:DISABLED}&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&useUnicode=true&allowMultiQueries=true
+    username: ${DB_USERNAME:sangong}
+    password: ${DB_PASSWORD:sangong}
+    hikari:
+      maximum-pool-size: 20
+      pool-name: sangong
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+sangong:
+  # 玩家鉴权直接验签主服务 App JWT，不再自签发
+  chat99-jwt-secret: ${CHAT99_JWT_SECRET:}
+  settings-write-key: ${SANGONG_SETTINGS_WRITE_KEY:}
+  im-callback-key: ${SANGONG_IM_CALLBACK_KEY:}
+  app-url: ${APP_URL:http://127.0.0.1:8088}
+  storage-dir: ${SANGONG_STORAGE_DIR:data}
+  im:
+    sdk-app-id: ${IM_SDK_APP_ID:0}
+    key: ${IM_KEY:}
+    rest-admin: ${IM_REST_ADMIN_ACCOUNT:administrator}
+    rest-base-url: ${IM_REST_BASE_URL:https://adminapisgp.im.qcloud.com/v4}
+    bot-user-id: ${IM_BOT_USER_ID:bot_sangong}
+    group-game-id: ${IM_GROUP_GAME_ID:}
+    group-admin-stats-id: ${IM_GROUP_ADMIN_STATS_ID:}
+    group-ledger-id: ${IM_GROUP_LEDGER_ID:}
+  integration:
+    base-url: ${INTEGRATION_API_BASE_URL:http://127.0.0.1:8081}
+    api-token: ${INTEGRATION_API_TOKEN:}
+  image:
+    scale: ${SANGONG_IMAGE_SCALE:3}
+    jpeg-quality: ${SANGONG_IMAGE_JPEG_QUALITY:85}
+    bet-report-title: ${SANGONG_BET_REPORT_TITLE:三公}
+  realtime:
+    poll-ms: ${SANGONG_REALTIME_POLL_MS:500}
+    heartbeat-seconds: ${SANGONG_REALTIME_HEARTBEAT_SEC:15}
+  kafka:
+    enabled: ${SANGONG_KAFKA_ENABLED:false}
+    topic-after-send: ${SANGONG_KAFKA_TOPIC_AFTER_SEND:chat99.im.after-send}
+    topic-group-recall: ${SANGONG_KAFKA_TOPIC_GROUP_RECALL:chat99.im.group-recall}
+    consumer-group: ${SANGONG_KAFKA_CONSUMER_GROUP:sangong-im-consumer}
+
+logging:
+  file:
+    name: ${SANGONG_LOG_FILE:logs/sangong-service.log}
+  level:
+    com.chat99.sangong: INFO

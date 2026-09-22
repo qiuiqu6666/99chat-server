@@ -1,0 +1,74 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Local secrets ###
+.env
+.env.local
+*.env.local
+scripts/data/life-payment-worker-tokens.env
+scripts/im-migrate-cn/state/
+scripts/im-migrate-cn/out/
+scripts/im-migrate-cn/*.env
+scripts/im-migrate-cn/.env*
+deploy/livekit/.api_key
+deploy/livekit/.api_secret
+deploy/livekit/livekit.env
+deploy/livekit/livekit.runtime.yaml
+certs/*.p12
+certs/*.pem
+certs/*.txt
+!certs/README.md
+apns/*.p12
+
+### Local env backups / extra secrets ###
+.env.bak*
+.env.*
+!.env.example
+
+### Runtime / logs ###
+logs/
+*.log
+nohup.out
+app.pid
+.DS_Store
+
+### Build artifacts and oversized binaries (GitHub 100MB limit) ###
+*.zip
+*.jar
+BOOT-INF/
+node_modules/
+
+### Local data exports (may contain accounts / PII) ###
+/data/
+/exports/

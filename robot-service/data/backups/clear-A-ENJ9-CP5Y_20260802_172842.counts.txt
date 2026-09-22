@@ -1,0 +1,13 @@
+t	c
+robot_machine	2
+robot_group_binding	3
+robot_player_snapshot	20
+robot_player_daily_summary	0
+robot_player_updown_record	0
+robot_runtime_state	2
+robot_sync_event	62
+agent_report_export_task	0
+im_group_id	machine_code	enabled
+@TGS#_@TGS#c2SX4NMM62CZ	CP5Y-4EX1-AC9V	0
+@TGS#27PIAKM5CC	CP5Y-4EX1-AC9V	0
+@TGS#2EQC7YN5CQ	ENJ9-6FPG-S2QS	1

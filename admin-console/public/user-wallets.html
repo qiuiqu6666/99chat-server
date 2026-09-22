@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>99Chat 用户币种余额</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --panel-2: #243044;
+      --line: #334155;
+      --text: #e8eef6;
+      --muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-2: #2563eb;
+      --ok: #22c55e;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1e3a5f 0%, transparent 50%), var(--bg);
+      color: var(--text);
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 16px 48px; }
+    h1 { font-size: 22px; margin: 0 0 6px; font-weight: 700; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 22px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .28);
+    }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .field { flex: 1; min-width: 180px; }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+    button:hover { background: var(--accent-2); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    button.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+    button.danger { background: #7f1d1d; }
+    .msg {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--danger);
+      min-height: 18px;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .stats { color: var(--muted); font-size: 13px; }
+    .stats b { color: var(--text); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      background: var(--panel);
+      z-index: 1;
+      white-space: nowrap;
+    }
+    .uid { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .nick { font-weight: 600; }
+    .coins { display: flex; flex-wrap: wrap; gap: 6px; }
+    .coin {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 4px 8px;
+      white-space: nowrap;
+    }
+    .coin .code { color: var(--muted); margin-right: 6px; }
+    .coin .amt { font-variant-numeric: tabular-nums; }
+    .coin .frozen { color: var(--warn); margin-left: 4px; font-size: 12px; }
+    .empty { text-align: center; color: var(--muted); padding: 36px 0; }
+    .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 14px; }
+    .hidden { display: none; }
+    .login-box { max-width: 420px; margin: 80px auto; }
+    .progress {
+      height: 6px;
+      background: #0f172a;
+      border-radius: 99px;
+      overflow: hidden;
+      margin: 10px 0 0;
+    }
+    .progress > span {
+      display: block;
+      height: 100%;
+      background: var(--ok);
+      width: 0;
+      transition: width .2s;
+    }
+    .table-wrap { overflow: auto; max-height: calc(100vh - 260px); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section id="loginView" class="login-box card">
+      <h1>管理员登录</h1>
+      <p class="sub">对接 99Chat 运营后台，查看用户各币种余额。</p>
+      <div class="field" style="margin-bottom:12px">
+        <label for="username">管理员账号</label>
+        <input id="username" autocomplete="username" />
+      </div>
+      <div class="field" style="margin-bottom:16px">
+        <label for="password">管理员密码</label>
+        <input id="password" type="password" autocomplete="current-password" />
+      </div>
+      <button id="loginBtn" type="button">登录</button>
+      <div id="loginMsg" class="msg"></div>
+    </section>
+
+    <section id="appView" class="hidden">
+      <div class="toolbar">
+        <div>
+          <h1>用户币种余额</h1>
+          <p class="sub" style="margin:0">已登录：<span id="who"></span></p>
+        </div>
+        <button id="logoutBtn" class="ghost" type="button">退出登录</button>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="field">
+            <label for="filterId">用户 ID</label>
+            <input id="filterId" placeholder="精确或模糊匹配 user_uid" />
+          </div>
+          <div class="field">
+            <label for="filterNick">昵称</label>
+            <input id="filterNick" placeholder="精确或模糊匹配昵称" />
+          </div>
+          <button id="filterBtn" type="button">筛选</button>
+          <button id="resetBtn" class="ghost" type="button">重置</button>
+          <button id="reloadBtn" class="ghost" type="button">重新加载全部</button>
+        </div>
+        <div class="progress"><span id="bar"></span></div>
+        <div class="toolbar" style="margin:12px 0 0">
+          <div class="stats" id="stats">尚未加载</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>用户 ID</th>
+                <th>昵称</th>
+                <th>各币种金额</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+        <div id="empty" class="empty hidden">没有匹配的用户</div>
+        <div class="pager">
+          <button id="prevBtn" class="ghost" type="button">上一页</button>
+          <span class="stats" id="pageInfo">—</span>
+          <button id="nextBtn" class="ghost" type="button">下一页</button>
+        </div>
+        <div id="appMsg" class="msg"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const API_BASE = "https://adminapi.99chat.vip/api/v1";
+    const TOKEN_KEY = "chat99_wallet_html_token";
+    const USER_KEY = "chat99_wallet_html_user";
+    const PAGE_SIZE = 50;
+    const FETCH_SIZE = 100;
+    const CURRENCY_LABELS = { USDT: "USDT", TRX: "TRX", CNY: "99币", "99": "99币" };
+
+    const loginView = document.getElementById("loginView");
+    const appView = document.getElementById("appView");
+    const loginMsg = document.getElementById("loginMsg");
+    const appMsg = document.getElementById("appMsg");
+    const tbody = document.getElementById("tbody");
+    const empty = document.getElementById("empty");
+    const stats = document.getElementById("stats");
+    const bar = document.getElementById("bar");
+    const who = document.getElementById("who");
+    const pageInfo = document.getElementById("pageInfo");
+
+    let allUsers = [];
+    let filtered = [];
+    let page = 1;
+    let loading = false;
+
+    function token() {
+      return localStorage.getItem(TOKEN_KEY) || "";
+    }
+
+    function setAuth(accessToken, username) {
+      localStorage.setItem(TOKEN_KEY, accessToken);
+      localStorage.setItem(USER_KEY, username || "");
+    }
+
+    function clearAuth() {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    }
+
+    function showLogin(msg) {
+      loginView.classList.remove("hidden");
+      appView.classList.add("hidden");
+      loginMsg.textContent = msg || "";
+    }
+
+    function showApp() {
+      loginView.classList.add("hidden");
+      appView.classList.remove("hidden");
+      who.textContent = localStorage.getItem(USER_KEY) || "管理员";
+    }
+
+    async function api(method, path, body) {
+      const headers = { Accept: "application/json" };
+      if (body !== undefined) headers["Content-Type"] = "application/json";
+      const t = token();
+      if (t) headers.Authorization = "Bearer " + t;
+      let res;
+      try {
+        res = await fetch(API_BASE + path, {
+          method,
+          headers,
+          body: body !== undefined ? JSON.stringify(body) : undefined
+        });
+      } catch (e) {
+        throw new Error(
+          "无法连接后台。请用浏览器打开 https://adminapi.99chat.vip/user-wallets.html ，不要直接双击本地文件。"
+        );
+      }
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+      if (res.status === 401) {
+        clearAuth();
+        showLogin("登录已失效，请重新登录");
+        throw new Error("unauthorized");
+      }
+      if (!res.ok) {
+        const msg = data.message || data.error || data.code || ("HTTP " + res.status);
+        throw new Error(String(msg));
+      }
+      return data && typeof data === "object" && data.data && typeof data.data === "object" && !Array.isArray(data.data)
+        ? data.data
+        : data;
+    }
+
+    function pickItems(raw) {
+      const items = raw.items || raw.list || raw.rows || raw.content || [];
+      return {
+        items: Array.isArray(items) ? items : [],
+        total: Number(raw.total ?? raw.count ?? 0)
+      };
+    }
+
+    function uidOf(row) {
+      return String(row.user_uid || row.userUid || "");
+    }
+
+    function nickOf(row) {
+      return String(row.nickname || "");
+    }
+
+    function balancesOf(row) {
+      const map = row.wallet_balances || row.walletBalances || {};
+      const frozen = row.wallet_frozen_by_currency || row.walletFrozenByCurrency || {};
+      const codes = Object.keys(map);
+      if (!codes.length) {
+        return [
+          { code: "USDT", amount: row.wallet_balance || row.walletBalance || "0", frozen: row.wallet_frozen_amount || row.walletFrozenAmount || "0" },
+          { code: "TRX", amount: "0", frozen: "0" },
+          { code: "CNY", amount: "0", frozen: "0" }
+        ];
+      }
+      return codes.map(function (code) {
+        return {
+          code: code,
+          amount: map[code],
+          frozen: frozen[code] || "0"
+        };
+      });
+    }
+
+    function isZero(v) {
+      const n = Number(v);
+      return !v || n === 0;
+    }
+
+    function applyFilter() {
+      const idq = document.getElementById("filterId").value.trim().toLowerCase();
+      const nickq = document.getElementById("filterNick").value.trim().toLowerCase();
+      filtered = allUsers.filter(function (row) {
+        const uid = uidOf(row).toLowerCase();
+        const nick = nickOf(row).toLowerCase();
+        if (idq && uid.indexOf(idq) === -1) return false;
+        if (nickq && nick.indexOf(nickq) === -1) return false;
+        return true;
+      });
+      page = 1;
+      render();
+    }
+
+    function render() {
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (page > totalPages) page = totalPages;
+      const start = (page - 1) * PAGE_SIZE;
+      const slice = filtered.slice(start, start + PAGE_SIZE);
+      tbody.innerHTML = "";
+      slice.forEach(function (row) {
+        const tr = document.createElement("tr");
+        const coins = balancesOf(row).map(function (c) {
+          const label = CURRENCY_LABELS[c.code] || c.code;
+          const frozenHtml = isZero(c.frozen) ? "" : '<span class="frozen">冻 ' + escapeHtml(String(c.frozen)) + "</span>";
+          return '<span class="coin"><span class="code">' + escapeHtml(label) + '</span><span class="amt">' +
+            escapeHtml(String(c.amount ?? "0")) + "</span>" + frozenHtml + "</span>";
+        }).join("");
+        tr.innerHTML =
+          '<td class="uid">' + escapeHtml(uidOf(row)) + "</td>" +
+          '<td class="nick">' + escapeHtml(nickOf(row) || "—") + "</td>" +
+          '<td><div class="coins">' + coins + "</div></td>";
+        tbody.appendChild(tr);
+      });
+      empty.classList.toggle("hidden", slice.length > 0);
+      stats.innerHTML = "共 <b>" + allUsers.length + "</b> 名用户，筛选后 <b>" + filtered.length + "</b> 名";
+      pageInfo.textContent = "第 " + page + " / " + totalPages + " 页";
+      document.getElementById("prevBtn").disabled = page <= 1;
+      document.getElementById("nextBtn").disabled = page >= totalPages;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function loadAll() {
+      if (loading) return;
+      loading = true;
+      appMsg.textContent = "";
+      allUsers = [];
+      filtered = [];
+      render();
+      document.getElementById("reloadBtn").disabled = true;
+      try {
+        let pageNo = 1;
+        let total = Infinity;
+        while ((pageNo - 1) * FETCH_SIZE < total) {
+          const raw = await api("GET", "/users?page=" + pageNo + "&page_size=" + FETCH_SIZE + "&sort=register_time_desc");
+          const picked = pickItems(raw);
+          total = picked.total || picked.items.length;
+          allUsers = allUsers.concat(picked.items);
+          const pct = total ? Math.min(100, Math.round(allUsers.length / total * 100)) : 100;
+          bar.style.width = pct + "%";
+          stats.innerHTML = "正在加载 " + allUsers.length + " / " + total;
+          if (!picked.items.length) break;
+          pageNo += 1;
+          if (pageNo > 500) break;
+        }
+        applyFilter();
+      } catch (e) {
+        if (e.message !== "unauthorized") appMsg.textContent = e.message || "加载失败";
+      } finally {
+        loading = false;
+        document.getElementById("reloadBtn").disabled = false;
+      }
+    }
+
+    async function login() {
+      loginMsg.textContent = "";
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      if (!username || !password) {
+        loginMsg.textContent = "请输入管理员账号和密码";
+        return;
+      }
+      document.getElementById("loginBtn").disabled = true;
+      try {
+        const raw = await api("POST", "/auth/login", { username: username, password: password });
+        const access = String(raw.access_token || raw.accessToken || raw.token || "");
+        const user = raw.user || {};
+        if (!access) throw new Error("登录成功但未返回 token");
+        setAuth(access, String(user.username || username));
+        document.getElementById("password").value = "";
+        showApp();
+        await loadAll();
+      } catch (e) {
+        if (e.message !== "unauthorized") loginMsg.textContent = e.message || "登录失败";
+      } finally {
+        document.getElementById("loginBtn").disabled = false;
+      }
+    }
+
+    function logout() {
+      const t = token();
+      if (t) {
+        fetch(API_BASE + "/auth/logout", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + t, Accept: "application/json" }
+        }).catch(function () {});
+      }
+      clearAuth();
+      allUsers = [];
+      filtered = [];
+      showLogin("");
+    }
+
+    document.getElementById("loginBtn").addEventListener("click", login);
+    document.getElementById("password").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") login();
+    });
+    document.getElementById("username").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") login();
+    });
+    document.getElementById("logoutBtn").addEventListener("click", logout);
+    document.getElementById("filterBtn").addEventListener("click", applyFilter);
+    document.getElementById("filterId").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") applyFilter();
+    });
+    document.getElementById("filterNick").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") applyFilter();
+    });
+    document.getElementById("resetBtn").addEventListener("click", function () {
+      document.getElementById("filterId").value = "";
+      document.getElementById("filterNick").value = "";
+      applyFilter();
+    });
+    document.getElementById("reloadBtn").addEventListener("click", loadAll);
+    document.getElementById("prevBtn").addEventListener("click", function () {
+      if (page > 1) { page -= 1; render(); }
+    });
+    document.getElementById("nextBtn").addEventListener("click", function () {
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (page < totalPages) { page += 1; render(); }
+    });
+
+    (async function boot() {
+      if (!token()) {
+        showLogin("");
+        return;
+      }
+      try {
+        const me = await api("GET", "/auth/me");
+        const user = me.user || me;
+        setAuth(token(), String(user.username || localStorage.getItem(USER_KEY) || "管理员"));
+        showApp();
+        await loadAll();
+      } catch (e) {
+        clearAuth();
+        showLogin(e.message === "unauthorized" ? "登录已失效，请重新登录" : (e.message || "请重新登录"));
+      }
+    })();
+  </script>
+</body>
+</html>
