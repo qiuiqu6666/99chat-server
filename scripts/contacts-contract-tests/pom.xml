@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.5.14</version>
+    <relativePath/>
+  </parent>
+  <groupId>com.chat99</groupId>
+  <artifactId>contacts-contract-tests</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <properties><java.version>17</java.version></properties>
+  <dependencies>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+  </dependencies>
+  <build>
+    <!-- Compile actual endpoint sources without the unrelated bootstrap classes.
+         This does not replace the main project's service/integration tests. -->
+    <directory>${project.basedir}/../../target/contacts-contract-tests</directory>
+    <sourceDirectory>${project.basedir}/../../src/main/java</sourceDirectory>
+    <testSourceDirectory>${project.basedir}/../../src/test/java</testSourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <includes>
+            <include>com/chat99/server/sync/SyncDomainController.java</include>
+            <include>com/chat99/server/sync/SyncDomain.java</include>
+            <include>com/chat99/server/sync/SyncProvider.java</include>
+            <include>com/chat99/server/sync/SyncEnvelope.java</include>
+            <include>com/chat99/server/sync/OpaqueCursor.java</include>
+          </includes>
+          <testIncludes><testInclude>com/chat99/server/sync/SyncDomainControllerTest.java</testInclude></testIncludes>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

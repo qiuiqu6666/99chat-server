@@ -1,6 +1,5 @@
 package com.chat99.server.sync;
 
-import com.chat99.server.sync.provider.GroupMembersSyncProvider;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
  * 业务数据双轨同步统一入口（Phase 4）：
  * <ul>
  *   <li>{@code GET /sync/{domain}/snapshot?limit=&cursor=&snapshotRevision=&groupId=}</li>
- *   <li>{@code GET /sync/{domain}/changes?cursor=&limit=&groupId=}</li>
+ *   <li>{@code GET /sync/{domain}/changes?cursor=&afterRevision=&limit=&groupId=}</li>
  * </ul>
  * domain ∈ contacts | groups | groupMembers | groupNotices（{@link SyncDomain}）。
  *
@@ -54,9 +53,19 @@ public class SyncDomainController {
                                 @PathVariable String domain,
                                 @RequestParam(required = false) String cursor,
                                 @RequestParam(required = false) Integer limit,
-                                @RequestParam(required = false) String groupId) {
+                                @RequestParam(required = false) String groupId,
+                                @RequestParam(required = false) Long afterRevision) {
         SyncProvider provider = resolve(domain);
         Map<String, String> extra = extraParams(groupId);
+        // A completed client page persists the revision and clears its page cursor.
+        // Honour that watermark instead of replaying the stream from revision zero.
+        if (provider.domain() == SyncDomain.CONTACTS
+            && (cursor == null || cursor.isBlank()) && afterRevision != null) {
+            if (afterRevision < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_REVISION");
+            }
+            cursor = OpaqueCursor.encode(provider.domain().path(), afterRevision, afterRevision);
+        }
         return provider.changes(
             (String) auth.getPrincipal(), cursor, limit == null ? 0 : limit, extra);
     }
@@ -77,6 +86,6 @@ public class SyncDomainController {
         if (groupId == null || groupId.isBlank()) {
             return Map.of();
         }
-        return Map.of(GroupMembersSyncProvider.PARAM_GROUP_ID, groupId.trim());
+        return Map.of("groupId", groupId.trim());
     }
 }

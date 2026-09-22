@@ -192,6 +192,7 @@ public class MeFriendsChangesService {
         }).toList();
     }
 
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ChangesResponse changes(String accountId, String opaqueCursor, int limit) {
         if (accountId == null || accountId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
@@ -202,10 +203,10 @@ public class MeFriendsChangesService {
         OpaqueCursor.CursorPayload payload;
         try {
             payload = OpaqueCursor.decode(opaqueCursor);
+            OpaqueCursor.validate(payload, DOMAIN);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.GONE, "INVALID_CURSOR");
         }
-        OpaqueCursor.validate(payload, DOMAIN);
 
         int safeLimit = clamp(limit);
         long sinceRevision = payload.revision();
@@ -222,7 +223,9 @@ public class MeFriendsChangesService {
         List<FriendItem> events = rows.stream().map(this::toItem).toList();
         Long maxRev = changeRepository.findMaxRevisionForAccount(accountId);
         long currentRev = maxRev == null ? sinceRevision : maxRev;
-        long toRevision = rows.isEmpty() ? currentRev : rows.get(rows.size() - 1).getRevision();
+        // Only acknowledge rows actually read. A concurrent commit must never be
+        // skipped merely because MAX(revision) sees it after the page query.
+        long toRevision = rows.isEmpty() ? sinceRevision : rows.get(rows.size() - 1).getRevision();
         String nextOpaque = OpaqueCursor.encode(DOMAIN, toRevision, toRevision);
         long serverTime = System.currentTimeMillis();
         return new ChangesResponse(currentRev, toRevision, nextOpaque, hasMore, serverTime, events);

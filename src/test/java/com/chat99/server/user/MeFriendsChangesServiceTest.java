@@ -175,4 +175,25 @@ class MeFriendsChangesServiceTest {
         row.setCreatedAt(1_788_330_000_000L + revision);
         return row;
     }
+
+    @Test
+    void changes_emptyPageNeverAcknowledgesAnUndeliveredConcurrentCommit() {
+        when(changeRepository.findForAccountSinceRevision(eq("a"), eq(10L), any(Pageable.class)))
+            .thenReturn(List.of());
+        when(changeRepository.findMaxRevisionForAccount("a")).thenReturn(11L);
+
+        var response = service.changes("a", com.chat99.server.sync.OpaqueCursor.encode("contacts", 10L, 10L), 100);
+
+        assertThat(response.events()).isEmpty();
+        assertThat(response.toRevision()).isEqualTo(10L);
+        assertThat(com.chat99.server.sync.OpaqueCursor.decode(response.opaqueCursor()).revision()).isEqualTo(10L);
+    }
+
+    @Test
+    void changes_wrongDomainCursorReturnsRecoverableGone() {
+        var cursor = com.chat99.server.sync.OpaqueCursor.encode("groups", 10L, 10L);
+        assertThatThrownBy(() -> service.changes("a", cursor, 100))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.GONE));
+    }
 }
