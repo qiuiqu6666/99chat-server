@@ -47,7 +47,9 @@ public class ApnsVoipPushSender {
                 token.getVoipPushToken(),
                 topic,
                 payload,
-                Instant.now().plusSeconds(60),
+                // A delayed VoIP invite is no longer a live call. Keep APNs
+                // from replaying it when the phone reconnects much later.
+                Instant.now().plusSeconds(5),
                 DeliveryPriority.IMMEDIATE,
                 PushType.VOIP);
             PushNotificationFuture<SimpleApnsPushNotification, com.eatthepath.pushy.apns.PushNotificationResponse<SimpleApnsPushNotification>> future =

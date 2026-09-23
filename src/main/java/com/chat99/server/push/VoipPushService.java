@@ -77,12 +77,14 @@ public class VoipPushService {
             call.inviteId(), callerId, calleeId,
             call.mediaType(), call.roomId(),
             call.callerName(), call.callerAvatarUrl(), call.type(), call.action());
-        if (!notificationSettings.isCallNotificationEnabled(call.calleeId())) {
-            log.debug("voip push skipped: call notification disabled callee={}", call.calleeId());
+        // PushKit may only wake iOS for a real incoming call. A terminal push
+        // cannot be reported as a new CallKit call and can terminate the app.
+        if (call.isTerminal()) {
+            log.debug("voip terminal push suppressed inviteId={} action={}", call.inviteId(), call.action());
             return;
         }
-        if (call.isTerminal()) {
-            notifyAllCalleeDevices(call);
+        if (!notificationSettings.isCallNotificationEnabled(call.calleeId())) {
+            log.debug("voip push skipped: call notification disabled callee={}", call.calleeId());
             return;
         }
         String dedupKey = "voip|" + call.inviteId() + "|" + call.calleeId();
@@ -147,65 +149,6 @@ public class VoipPushService {
             log.warn("voip push failed all devices callee={} inviteId={} candidates={}",
                 call.calleeId(), call.inviteId(), attempted);
         }
-    }
-
-    /**
-     * 被叫多端停铃：App 内靠 IM；系统 CallKit 靠本方法向<strong>全部</strong> voip_enabled 设备再推终态。
-     * 与来电不同：不限「最新一台」，不因通话通知开关跳过（可能已在响铃）。
-     */
-    public void notifyCalleeDevicesEnded(String inviteId, String callerId, String calleeId,
-                                         String mediaType, String roomId, String type, String action) {
-        if (!enabled() || inviteId == null || inviteId.isBlank()
-            || calleeId == null || calleeId.isBlank()) {
-            return;
-        }
-        String normalizedCaller = CallUserIdNormalizer.normalize(callerId);
-        String normalizedCallee = CallUserIdNormalizer.normalize(calleeId);
-        VoipCallPush ended = VoipCallPush.ended(
-            inviteId, normalizedCaller, normalizedCallee, mediaType, roomId,
-            type == null || type.isBlank() ? "lk_call" : type,
-            action == null || action.isBlank() ? "answered_elsewhere" : action);
-        notifyAllCalleeDevices(ended);
-    }
-
-    private void notifyAllCalleeDevices(VoipCallPush call) {
-        String dedupKey = "voip|end|" + call.action() + "|" + call.inviteId() + "|" + call.calleeId();
-        if (!dedupStore.markIfNew(dedupKey)) {
-            log.debug("voip end push duplicate action={} inviteId={} callee={}",
-                call.action(), call.inviteId(), call.calleeId());
-            return;
-        }
-        List<UserPushToken> voipTokens = tokenRepository.findByUserIdAndVoipEnabledTrue(call.calleeId()).stream()
-            .filter(t -> t.getVoipPushToken() != null && !t.getVoipPushToken().isBlank())
-            .collect(Collectors.toList());
-        if (voipTokens.isEmpty()) {
-            log.info("voip end push skipped: no voip token callee={} action={}",
-                call.calleeId(), call.action());
-            return;
-        }
-        VoipCallPush enriched = enrichCall(call);
-        int sent = 0;
-        for (UserPushToken candidate : voipTokens) {
-            if (!isPlausibleVoipToken(candidate.getVoipPushToken())) {
-                pushTokenService.clearVoipToken(candidate.getId());
-                continue;
-            }
-            PushSendResult result = voipPushSender.send(candidate, enriched);
-            if (result.invalidToken()) {
-                pushTokenService.clearVoipToken(candidate.getId());
-                log.warn("voip end push invalid token cleared callee={} deviceId={} action={}",
-                    enriched.calleeId(), candidate.getDeviceId(), enriched.action());
-                continue;
-            }
-            if (result.sent()) {
-                sent++;
-            } else {
-                log.warn("voip end push failed callee={} deviceId={} action={} detail={}",
-                    enriched.calleeId(), candidate.getDeviceId(), enriched.action(), result.detail());
-            }
-        }
-        log.info("voip end push done callee={} inviteId={} action={} sent={} candidates={}",
-            enriched.calleeId(), enriched.inviteId(), enriched.action(), sent, voipTokens.size());
     }
 
     /**

@@ -191,10 +191,6 @@ public class LiveKitCallService {
         long tIm = System.nanoTime();
         sendSignal(userId, session.getCalleeUserId(), "cancel", callId, session.getRoomId(),
             session.getMediaType(), session.getCallerUserId(), session.getCalleeUserId());
-        // cancel 的 IM 已到被叫；再补 VoIP 终态收口 CallKit
-        voipPushService.notifyCalleeDevicesEnded(
-            callId, session.getCallerUserId(), session.getCalleeUserId(),
-            session.getMediaType(), session.getRoomId(), PUSH_TYPE, "cancel");
         long imMs = elapsedMs(tIm);
         log.info("livekit cancel callId={} userId={} loadMs={} dbMs={} imMs={} totalMs={}",
             callId, userId, loadMs, dbMs, imMs, elapsedMs(t0));
@@ -418,7 +414,7 @@ public class LiveKitCallService {
     }
 
     /**
-     * 收口被叫其它端：App 内 IM + 系统 CallKit VoIP。
+     * 收口被叫其它端：使用 IM 信令，禁止以 PushKit 发送终态。
      * IM 用主叫→被叫发出，保证被叫多端作为 To_Account 都能收到（SyncOtherMachine=2）。
      */
     private void stopCalleeOtherEndpoints(CallSession session, String action) {
@@ -427,8 +423,6 @@ public class LiveKitCallService {
         String calleeId = session.getCalleeUserId();
         sendSignal(callerId, calleeId, action, callId, session.getRoomId(),
             session.getMediaType(), callerId, calleeId);
-        voipPushService.notifyCalleeDevicesEnded(
-            callId, callerId, calleeId, session.getMediaType(), session.getRoomId(), PUSH_TYPE, action);
     }
 
     private static String signalDesc(String action, String mediaType) {

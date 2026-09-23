@@ -1,11 +1,8 @@
 package com.chat99.server.push;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -231,33 +228,13 @@ class VoipPushServiceTest {
     }
 
     @Test
-    void notifyCalleeDevicesEndedPushesAllVoipDevices() {
-        UserPushToken a = new UserPushToken();
-        a.setId(51L);
-        a.setUserId("callee1");
-        a.setDeviceId("phone-a");
-        a.setVoipPushToken("a".repeat(64));
-        a.setLastSeenAt(Instant.parse("2026-08-01T00:00:00Z"));
-        UserPushToken b = new UserPushToken();
-        b.setId(52L);
-        b.setUserId("callee1");
-        b.setDeviceId("phone-b");
-        b.setVoipPushToken("b".repeat(64));
-        b.setLastSeenAt(Instant.parse("2026-08-13T00:00:00Z"));
+    void terminalCallDoesNotSendPushKitNotification() {
         when(pushConfig.isPushEnabled()).thenReturn(true);
         when(pushConfig.isVoipPushEnabled()).thenReturn(true);
         when(voipPushSender.isReady()).thenReturn(true);
-        when(dedupStore.markIfNew(anyString())).thenReturn(true);
-        when(tokenRepository.findByUserIdAndVoipEnabledTrue("callee1")).thenReturn(List.of(a, b));
-        when(voipPushSender.send(any(), any(VoipCallPush.class))).thenReturn(PushSendResult.ok());
-
-        service.notifyCalleeDevicesEnded(
-            "call-end-1", "caller1", "callee1", "audio", "call_x", "lk_call", "answered_elsewhere");
-
-        ArgumentCaptor<VoipCallPush> captor = ArgumentCaptor.forClass(VoipCallPush.class);
-        verify(voipPushSender, times(2)).send(any(), captor.capture());
-        assertThat(captor.getAllValues()).allMatch(VoipCallPush::isTerminal);
-        assertThat(captor.getAllValues()).allMatch(p -> "answered_elsewhere".equals(p.action()));
+        service.sendIncomingCall(VoipCallPush.ended(
+            "call-end-1", "caller1", "callee1", "audio", "call_x", "lk_call", "hangup"));
+        verify(voipPushSender, never()).send(any(), any());
     }
 
     @Test
