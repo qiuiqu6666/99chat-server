@@ -79,17 +79,8 @@ public class SmsCodeStore {
         return challengeId;
     }
 
-    /** 同一 challenge 发码次数上限，防刷。 */
+    /** 同一 challenge 发码次数上限：按业务要求暂不限制。 */
     public void checkDeviceSendLimit(String challengeId) {
-        String key = "sms:device:send:" + challengeId;
-        Long n = redis.opsForValue().increment(key);
-        int max = props.deviceChallengeMaxSends();
-        if (n != null && n == 1) {
-            redis.expire(key, Duration.ofSeconds(props.code().ttlSeconds()));
-        }
-        if (n != null && n > max) {
-            throw new DeviceSendLimitException();
-        }
     }
 
     public DeviceChallenge readDeviceChallenge(String challengeId) {

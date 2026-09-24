@@ -16,10 +16,7 @@ public class SmsRateLimiter {
     }
 
     public void check(String phone, String ip) {
-        SmsProperties.Rate r = props.rate();
-        consume("sms:rl:phone:" + phone, r.phonePerMinute(), Duration.ofMinutes(1));
-        consume("sms:rl:phone:day:" + phone, r.phonePerDay(), Duration.ofDays(1));
-        if (ip != null) consume("sms:rl:ip:" + ip, r.ipPerMinute(), Duration.ofMinutes(1));
+        // 号码每分钟 / 号码每天 / IP 每分钟：按业务要求暂不限制
     }
 
     private void consume(String key, int limit, Duration ttl) {

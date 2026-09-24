@@ -68,7 +68,6 @@ public class AliyunPnvsSmsClient {
             .setCodeType(pnvs.codeType())
             .setCodeLength(pnvs.codeLength())
             .setValidTime(pnvs.validTimeSeconds())
-            .setInterval(pnvs.intervalSeconds())
             .setReturnVerifyCode(false);
         send(request, phoneE164, "dynamic");
     }
@@ -205,11 +204,6 @@ public class AliyunPnvsSmsClient {
                 log.warn("aliyun send failed phone={} mode={} sign={} template={} akPrefix={} code={} message={}",
                     phoneUtils.mask(phoneE164), mode, request.getSignName(), request.getTemplateCode(),
                     akPrefix, errCode, errMessage);
-                if ("FREQUENCY_FAIL".equalsIgnoreCase(errCode)
-                    || "BUSINESS_LIMIT_CONTROL".equalsIgnoreCase(errCode)
-                    || "biz.FREQUENCY".equalsIgnoreCase(errCode)) {
-                    throw new SmsRateLimiter.RateLimitedException(props.aliyunPnvs().intervalSeconds());
-                }
                 throw new SmsbaoClient.SmsSendException("SMS_PROVIDER_FAILED:" + errCode);
             }
             log.info("aliyun pnvs send ok phone={} mode={} template={}",
