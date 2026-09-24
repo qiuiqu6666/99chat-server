@@ -20,11 +20,14 @@ public class MeGroupCreateLimitController {
 
     public record JoinQuotaView(int max, int used, int remaining, boolean limited) {}
 
+    public record CommunityCreatePriceView(String currency, long amountMinor) {}
+
     public record GroupCreateLimitsResponse(
         boolean enabled,
         JoinQuotaView joinGroups,
         JoinQuotaView communityJoinGroups,
-        GroupQuotaView communityGroups) {}
+        GroupQuotaView communityGroups,
+        CommunityCreatePriceView communityCreatePrice) {}
 
     @GetMapping("/me/group-create-limits")
     public GroupCreateLimitsResponse limits(Authentication auth) {
@@ -42,6 +45,8 @@ public class MeGroupCreateLimitController {
                 communityCreate.max(),
                 communityCreate.used(),
                 communityCreate.remaining(),
-                communityCreate.limited()));
+                communityCreate.limited()),
+            new CommunityCreatePriceView(config.getCommunityPriceCurrency().getApiCode(),
+                config.getCommunityPriceMinor()));
     }
 }

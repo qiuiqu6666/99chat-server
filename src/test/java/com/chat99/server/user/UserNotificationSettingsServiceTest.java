@@ -52,6 +52,23 @@ class UserNotificationSettingsServiceTest {
         assertThat(service.isSystemMessageNotificationEnabled("missing")).isTrue();
     }
 
+    @Test
+    void oldDisabledCallPreferenceDoesNotSuppressCallNotifications() {
+        User user = new User();
+        user.setUserId("u1");
+        user.setStatus(1);
+        user.setCallNotificationEnabled(false);
+        when(userRepository.findByUserId("u1")).thenReturn(java.util.Optional.of(user));
+
+        assertThat(service.getForUser("u1").callNotificationEnabled()).isTrue();
+        assertThat(service.isCallNotificationEnabled("u1")).isTrue();
+
+        var request = new UserNotificationSettingsService.NotificationSettingsUpdateRequest(
+            null, false, null);
+        assertThat(service.updateForUser("u1", request).callNotificationEnabled()).isTrue();
+        assertThat(user.isCallNotificationEnabled()).isTrue();
+    }
+
     private void stubUser(NotificationDisplayContent mode) {
         User user = new User();
         user.setUserId("u1");

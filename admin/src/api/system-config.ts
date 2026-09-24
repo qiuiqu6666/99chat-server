@@ -43,6 +43,8 @@ export type PushBusinessConfig = {
   group_create_limit_enforce: boolean;
   group_create_limit_log_only: boolean;
   group_create_limit_use_im_count_fallback: boolean;
+  community_create_price_currency: string;
+  community_create_price_minor: number;
   pay_pin_max_failures: number;
   pay_pin_lock_minutes: number;
   red_packet_expire_hours: number;

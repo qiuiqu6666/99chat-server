@@ -5,11 +5,18 @@ import com.chat99.server.im.ImRestException;
 import com.chat99.server.im.ImUserIdService;
 import com.chat99.server.user.UserFriendService;
 import com.chat99.server.user.UserRepository;
+import com.chat99.server.wallet.PayPinService;
+import com.chat99.server.wallet.WalletCurrency;
+import com.chat99.server.wallet.WalletLedgerService;
+import com.chat99.server.wallet.WalletLedgerType;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -23,7 +30,11 @@ public class GroupCreateService {
         String avatarUrl,
         List<String> memberUserIds,
         JoinOptionsBody joinOptions,
-        String introduction) {}
+        String introduction,
+        String clientRequestId,
+        String payPin,
+        String expectedPriceCurrency,
+        Long expectedPriceMinor) {}
 
     private final ImAdminClient im;
     private final ImUserIdService imUserIdService;
@@ -35,6 +46,11 @@ public class GroupCreateService {
     private final GroupSettingsRepository settingsRepository;
     private final GroupProfileService profileService;
     private final GroupAvatarDefaults avatarDefaults;
+    private final GroupCreateLimitConfigService createConfig;
+    private final CommunityCreatePaymentRepository paymentRepository;
+    private final PayPinService payPinService;
+    private final WalletLedgerService walletLedgerService;
+    private final TransactionTemplate transactionTemplate;
 
     public GroupCreateService(ImAdminClient im,
                               ImUserIdService imUserIdService,
@@ -45,7 +61,12 @@ public class GroupCreateService {
                               GroupProjectionTxService projectionTx,
                               GroupSettingsRepository settingsRepository,
                               GroupProfileService profileService,
-                              GroupAvatarDefaults avatarDefaults) {
+                              GroupAvatarDefaults avatarDefaults,
+                              GroupCreateLimitConfigService createConfig,
+                              CommunityCreatePaymentRepository paymentRepository,
+                              PayPinService payPinService,
+                              WalletLedgerService walletLedgerService,
+                              PlatformTransactionManager transactionManager) {
         this.im = im;
         this.imUserIdService = imUserIdService;
         this.friendService = friendService;
@@ -56,17 +77,61 @@ public class GroupCreateService {
         this.settingsRepository = settingsRepository;
         this.profileService = profileService;
         this.avatarDefaults = avatarDefaults;
+        this.createConfig = createConfig;
+        this.paymentRepository = paymentRepository;
+        this.payPinService = payPinService;
+        this.walletLedgerService = walletLedgerService;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
-    @Transactional
     public GroupProfileView createGroup(String creatorUserId, CreateGroupRequest req) {
-        String groupId = createGroupPersist(creatorUserId, req);
+        validateCreateRequest(req);
+        boolean community = GroupCreateLimitConfigService.isCommunity(req.groupType());
+        String requestedGroupId = community ? paidGroupId(req.clientRequestId()) : null;
+        if (community) {
+            if (req.payPin() == null || req.payPin().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PAY_PIN_REQUIRED");
+            }
+            CommunityCreatePayment previous = paymentRepository.findById(requestedGroupId).orElse(null);
+            if (previous != null) {
+                if (!creatorUserId.equals(previous.getOwnerUserId())) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "GROUP_CREATE_REQUEST_CONFLICT");
+                }
+                return profileService.getDetailFresh(requestedGroupId, creatorUserId);
+            }
+            payPinService.requireSetAndVerify(creatorUserId, req.payPin());
+        }
+        AtomicReference<String> createdInIm = new AtomicReference<>();
+        String groupId;
+        try {
+            groupId = transactionTemplate.execute(status ->
+                createGroupPersist(creatorUserId, req, requestedGroupId, createdInIm));
+        } catch (RuntimeException failure) {
+            String newImGroupId = createdInIm.get();
+            if (newImGroupId != null) {
+                try {
+                    im.destroyGroup(newImGroupId);
+                } catch (RuntimeException cleanupFailure) {
+                    failure.addSuppressed(cleanupFailure);
+                }
+            }
+            throw failure;
+        }
         return profileService.getDetailFresh(groupId, creatorUserId);
     }
 
-    /** IM 建群 + 本地投影/设置写入。响应组装在 {@link #createGroup} 的独立只读事务中读取。 */
-    private String createGroupPersist(String creatorUserId, CreateGroupRequest req) {
-        validateCreateRequest(req);
+    /** IM 建群 + 本地投影/设置写入与扣费。响应组装在事务提交后读取。 */
+    private String createGroupPersist(String creatorUserId, CreateGroupRequest req,
+                                      String requestedGroupId, AtomicReference<String> createdInIm) {
+        if (requestedGroupId != null) {
+            CommunityCreatePayment previous = paymentRepository.findById(requestedGroupId).orElse(null);
+            if (previous != null) {
+                if (!creatorUserId.equals(previous.getOwnerUserId())) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "GROUP_CREATE_REQUEST_CONFLICT");
+                }
+                return requestedGroupId;
+            }
+        }
         String groupType = req.groupType().trim();
         if (!GroupAccessService.BACKEND_CREATE_GROUP_TYPES.contains(groupType)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "GROUP_TYPE_NOT_SUPPORTED");
@@ -83,6 +148,19 @@ public class GroupCreateService {
             : req.joinOptions().inviteJoinOption();
 
         String avatarUrl = avatarDefaults.resolve(req.avatarUrl());
+        WalletCurrency priceCurrency = null;
+        long priceMinor = 0;
+        if (requestedGroupId != null) {
+            priceCurrency = createConfig.getCommunityPriceCurrency();
+            priceMinor = createConfig.getCommunityPriceMinor();
+            if (!priceCurrency.getApiCode().equals(req.expectedPriceCurrency())
+                || req.expectedPriceMinor() == null || priceMinor != req.expectedPriceMinor()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "COMMUNITY_PRICE_CHANGED");
+            }
+            walletLedgerService.debit(creatorUserId, priceCurrency, priceMinor,
+                WalletLedgerType.GROUP_CREATE, "COMMUNITY_CREATE", null, null,
+                "Community creation: " + requestedGroupId);
+        }
         String groupId;
         try {
             List<String> imMemberIds = memberUserIds.stream().map(imUserIdService::toIm).toList();
@@ -94,9 +172,19 @@ public class GroupCreateService {
                 req.introduction(),
                 imMemberIds,
                 apply,
-                invite);
+                invite,
+                requestedGroupId);
+            createdInIm.set(groupId);
+            if (requestedGroupId != null && !requestedGroupId.equals(groupId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "IM_GROUP_ID_MISMATCH");
+            }
         } catch (ImRestException e) {
-            throw mapImError(e);
+            String ownerIm = imUserIdService.toIm(creatorUserId);
+            if (requestedGroupId == null || im.getGroupBaseInfo(requestedGroupId)
+                .filter(info -> ownerIm.equals(info.ownerAccount())).isEmpty()) {
+                throw mapImError(e);
+            }
+            groupId = requestedGroupId;
         }
 
         projectionTx.seedGroupAfterCreate(
@@ -109,8 +197,31 @@ public class GroupCreateService {
             memberUserIds);
         saveJoinOptions(groupId, apply, invite);
         ownedGroupService.recordCreated(creatorUserId, groupType, groupId);
+        if (requestedGroupId != null) {
+            CommunityCreatePayment payment = new CommunityCreatePayment();
+            payment.setGroupId(groupId);
+            payment.setOwnerUserId(creatorUserId);
+            payment.setCurrency(priceCurrency);
+            payment.setAmountMinor(priceMinor);
+            paymentRepository.saveAndFlush(payment);
+        }
 
         return groupId;
+    }
+
+    static String paidGroupId(String clientRequestId) {
+        if (clientRequestId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "GROUP_CREATE_REQUEST_ID_REQUIRED");
+        }
+        try {
+            UUID id = UUID.fromString(clientRequestId.trim());
+            if (!id.toString().equalsIgnoreCase(clientRequestId.trim())) {
+                throw new IllegalArgumentException("noncanonical UUID");
+            }
+            return "@TGS#_P" + id.toString().replace("-", "");
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "GROUP_CREATE_REQUEST_ID_INVALID");
+        }
     }
 
     private void validateCreateRequest(CreateGroupRequest req) {

@@ -6,10 +6,12 @@ import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import com.chat99.server.im.ImCallbackVerifier;
 import com.chat99.server.im.ImUserIdService;
+import com.chat99.server.im.ImProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
@@ -35,15 +37,16 @@ class ImGroupBeforeCreateCallbackMappingTest {
     @BeforeEach
     void setUp() {
         service = new ImGroupBeforeCreateCallbackService(
-            config, ownedGroupService, joinLimitService, imUserIdService, callbackVerifier, new ObjectMapper());
-        when(config.isEnabled()).thenReturn(true);
-        when(config.isLogOnly()).thenReturn(false);
+            config, ownedGroupService, joinLimitService, imUserIdService, callbackVerifier,
+            new ObjectMapper(), new ImProperties(0, "administrator", null, null, null));
+        lenient().when(config.isEnabled()).thenReturn(true);
+        lenient().when(config.isLogOnly()).thenReturn(false);
         lenient().when(config.isEnforce()).thenReturn(true);
-        when(imUserIdService.toBusinessForDisplay("q14gkm5swv")).thenReturn("q14gkm5swv");
-        when(imUserIdService.toBusinessForDisplayBatch(anySet()))
+        lenient().when(imUserIdService.toBusinessForDisplay("q14gkm5swv")).thenReturn("q14gkm5swv");
+        lenient().when(imUserIdService.toBusinessForDisplayBatch(anySet()))
             .thenReturn(Map.of("q14gkm5swv", "q14gkm5swv"));
-        when(imUserIdService.isSpecialImAccount(any())).thenReturn(false);
-        when(joinLimitService.findOverLimitUsers(any(), any())).thenReturn(List.of());
+        lenient().when(imUserIdService.isSpecialImAccount(any())).thenReturn(false);
+        lenient().when(joinLimitService.findOverLimitUsers(any(), any())).thenReturn(List.of());
     }
 
     @Test
@@ -53,6 +56,7 @@ class ImGroupBeforeCreateCallbackMappingTest {
         String body = """
             {
               "Owner_Account": "q14gkm5swv",
+              "Operator_Account": "administrator",
               "Type": "Community",
               "MemberList": []
             }
@@ -69,5 +73,20 @@ class ImGroupBeforeCreateCallbackMappingTest {
         ArgumentCaptor<Set<String>> candidates = ArgumentCaptor.forClass(Set.class);
         verify(joinLimitService).findOverLimitUsers(candidates.capture(), eq("Community"));
         assertThat(candidates.getValue()).containsExactly("q14gkm5swv");
+    }
+
+    @Test
+    void handle_rejectsCommunityCreatedDirectlyBySdk() {
+        String body = """
+            {"Owner_Account":"q14gkm5swv", "Operator_Account":"q14gkm5swv", "Type":"Community"}
+            """;
+
+        var response = service.handle("123",
+            ImGroupBeforeCreateCallbackService.CMD_GROUP_BEFORE_CREATE,
+            "token", null, null, body);
+
+        assertThat(response.ErrorCode()).isEqualTo(1);
+        assertThat(response.ErrorInfo()).isEqualTo("COMMUNITY_PAYMENT_REQUIRED");
+        verify(ownedGroupService, never()).canCreate(any(), any());
     }
 }

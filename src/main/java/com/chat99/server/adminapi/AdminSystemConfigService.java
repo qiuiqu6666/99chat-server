@@ -151,7 +151,9 @@ public class AdminSystemConfigService {
             groupCreateLimitConfigService.getMaxCommunityGroups(),
             groupCreateLimitConfigService.isEnforce(),
             groupCreateLimitConfigService.isLogOnly(),
-            groupCreateLimitConfigService.isUseImCountFallback());
+            groupCreateLimitConfigService.isUseImCountFallback(),
+            groupCreateLimitConfigService.getCommunityPriceCurrency().getApiCode(),
+            groupCreateLimitConfigService.getCommunityPriceMinor());
     }
 
     @Transactional
@@ -263,6 +265,25 @@ public class AdminSystemConfigService {
         }
         if (req.groupCreateLimitUseImCountFallback() != null) {
             groupCreateLimitConfigService.setUseImCountFallback(req.groupCreateLimitUseImCountFallback());
+        }
+        if (req.communityCreatePriceCurrency() != null) {
+            com.chat99.server.wallet.WalletCurrency currency;
+            try {
+                currency = com.chat99.server.wallet.WalletCurrency.fromApiCode(req.communityCreatePriceCurrency());
+            } catch (IllegalArgumentException e) {
+                throw validation("community_create_price_currency is invalid");
+            }
+            if (currency == com.chat99.server.wallet.WalletCurrency.CNY) {
+                throw validation("community_create_price_currency must be 99, USDT or TRX");
+            }
+            groupCreateLimitConfigService.setCommunityPriceCurrency(currency);
+        }
+        if (req.communityCreatePriceMinor() != null) {
+            long v = req.communityCreatePriceMinor();
+            if (v <= 0 || v > 1_000_000_000_000L) {
+                throw validation("community_create_price_minor must be 1..1000000000000");
+            }
+            groupCreateLimitConfigService.setCommunityPriceMinor(v);
         }
         return getPushBusiness();
     }
@@ -464,7 +485,9 @@ public class AdminSystemConfigService {
         int groupCreateLimitMaxCommunity,
         boolean groupCreateLimitEnforce,
         boolean groupCreateLimitLogOnly,
-        boolean groupCreateLimitUseImCountFallback) {}
+        boolean groupCreateLimitUseImCountFallback,
+        String communityCreatePriceCurrency,
+        long communityCreatePriceMinor) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record WalletLimitItemView(
@@ -515,7 +538,9 @@ public class AdminSystemConfigService {
         Integer groupCreateLimitMaxCommunity,
         Boolean groupCreateLimitEnforce,
         Boolean groupCreateLimitLogOnly,
-        Boolean groupCreateLimitUseImCountFallback) {}
+        Boolean groupCreateLimitUseImCountFallback,
+        String communityCreatePriceCurrency,
+        Long communityCreatePriceMinor) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record InfrastructureItem(

@@ -2,6 +2,7 @@ package com.chat99.server.group;
 
 import com.chat99.server.im.ImCallbackVerifier;
 import com.chat99.server.im.ImUserIdService;
+import com.chat99.server.im.ImProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -27,19 +28,22 @@ public class ImGroupBeforeCreateCallbackService {
     private final ImUserIdService imUserIdService;
     private final ImCallbackVerifier callbackVerifier;
     private final ObjectMapper json;
+    private final ImProperties imProperties;
 
     public ImGroupBeforeCreateCallbackService(GroupCreateLimitConfigService config,
                                               UserOwnedGroupService ownedGroupService,
                                               GroupJoinLimitService joinLimitService,
                                               ImUserIdService imUserIdService,
                                               ImCallbackVerifier callbackVerifier,
-                                              ObjectMapper json) {
+                                              ObjectMapper json,
+                                              ImProperties imProperties) {
         this.config = config;
         this.ownedGroupService = ownedGroupService;
         this.joinLimitService = joinLimitService;
         this.imUserIdService = imUserIdService;
         this.callbackVerifier = callbackVerifier;
         this.json = json;
+        this.imProperties = imProperties;
     }
 
     public ImCallbackVerifier.ImCallbackResponse handle(String sdkAppId,
@@ -48,15 +52,24 @@ public class ImGroupBeforeCreateCallbackService {
                                                         String sign,
                                                         String requestTime,
                                                         String rawBody) {
-        if (!CMD_GROUP_BEFORE_CREATE.equals(command) || !config.isEnabled()) {
+        if (!CMD_GROUP_BEFORE_CREATE.equals(command)) {
             return null;
         }
 
         Map<String, Object> body = parseBody(rawBody);
         verifyAuth(callbackToken, sign, requestTime);
 
-        String ownerIm = str(body.get("Owner_Account"));
         String groupType = str(body.get("Type"));
+        if (GroupCreateLimitConfigService.isCommunity(groupType)
+            && !imProperties.restAdminAccount().equals(str(body.get("Operator_Account")))) {
+            log.info("group beforeCreate rejected unpaid Community SDK creation");
+            return ImCallbackVerifier.ImCallbackResponse.reject("COMMUNITY_PAYMENT_REQUIRED");
+        }
+        if (!config.isEnabled()) {
+            return ImCallbackVerifier.ImCallbackResponse.ok();
+        }
+
+        String ownerIm = str(body.get("Owner_Account"));
         if (ownerIm == null || ownerIm.isBlank() || groupType == null || groupType.isBlank()) {
             return ImCallbackVerifier.ImCallbackResponse.ok();
         }

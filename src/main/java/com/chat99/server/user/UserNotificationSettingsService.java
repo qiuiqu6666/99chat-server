@@ -37,7 +37,7 @@ public class UserNotificationSettingsService {
             user.setSystemMessageNotificationEnabled(req.systemMessageNotificationEnabled());
         }
         if (req.callNotificationEnabled() != null) {
-            user.setCallNotificationEnabled(req.callNotificationEnabled());
+            user.setCallNotificationEnabled(true);
         }
         if (req.notificationDisplayContent() != null) {
             user.setNotificationDisplayContent(req.notificationDisplayContent());
@@ -51,7 +51,7 @@ public class UserNotificationSettingsService {
     }
 
     public boolean isCallNotificationEnabled(String userId) {
-        return findPrefs(userId).callNotificationEnabled();
+        return true;
     }
 
     public PushMessage maskForUser(String userId, PushMessage message) {
@@ -89,7 +89,7 @@ public class UserNotificationSettingsService {
     private NotificationSettingsView toView(User user) {
         return new NotificationSettingsView(
             user.isSystemMessageNotificationEnabled(),
-            user.isCallNotificationEnabled(),
+            true,
             user.getNotificationDisplayContent() == null
                 ? NotificationDisplayContent.show_all
                 : user.getNotificationDisplayContent());

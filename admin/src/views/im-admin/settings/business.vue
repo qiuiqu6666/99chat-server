@@ -61,6 +61,8 @@ const businessForm = reactive({
   group_create_limit_enforce: true,
   group_create_limit_log_only: false,
   group_create_limit_use_im_count_fallback: true,
+  community_create_price_currency: "99",
+  community_create_price_amount: 10000,
   pay_pin_max_failures: 5,
   pay_pin_lock_minutes: 30,
   red_packet_expire_hours: 24,
@@ -130,6 +132,10 @@ function applyBusiness(data: PushBusinessConfig) {
   businessForm.group_create_limit_log_only = data.group_create_limit_log_only;
   businessForm.group_create_limit_use_im_count_fallback =
     data.group_create_limit_use_im_count_fallback ?? true;
+  businessForm.community_create_price_currency = data.community_create_price_currency || "99";
+  businessForm.community_create_price_amount =
+    (data.community_create_price_minor ?? 1_000_000) /
+    (data.community_create_price_currency === "99" ? 100 : 1_000_000);
   businessForm.pay_pin_max_failures = data.pay_pin_max_failures || 5;
   businessForm.pay_pin_lock_minutes = data.pay_pin_lock_minutes || 30;
   businessForm.red_packet_expire_hours = data.red_packet_expire_hours || 24;
@@ -234,6 +240,11 @@ async function saveBusiness() {
       group_create_limit_log_only: businessForm.group_create_limit_log_only,
       group_create_limit_use_im_count_fallback:
         businessForm.group_create_limit_use_im_count_fallback,
+      community_create_price_currency: businessForm.community_create_price_currency,
+      community_create_price_minor: Math.round(
+        businessForm.community_create_price_amount *
+          (businessForm.community_create_price_currency === "99" ? 100 : 1_000_000)
+      ),
       pay_pin_max_failures: businessForm.pay_pin_max_failures,
       pay_pin_lock_minutes: businessForm.pay_pin_lock_minutes,
       red_packet_expire_hours: businessForm.red_packet_expire_hours,
@@ -427,6 +438,22 @@ onMounted(() => {
                 :min="0"
                 :max="1000"
               />
+            </el-form-item>
+            <el-form-item label="超级大群创建币种">
+              <el-select v-model="businessForm.community_create_price_currency" style="width: 180px">
+                <el-option label="99 平台币" value="99" />
+                <el-option label="USDT" value="USDT" />
+                <el-option label="TRX" value="TRX" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="每个超级大群价格">
+              <el-input-number
+                v-model="businessForm.community_create_price_amount"
+                :min="0.01"
+                :max="1000000000"
+                :precision="2"
+              />
+              <span class="ml-2 text-gray-500">{{ businessForm.community_create_price_currency }}</span>
             </el-form-item>
             <el-form-item label="真正拦截">
               <el-switch v-model="businessForm.group_create_limit_enforce" />

@@ -2616,7 +2616,7 @@ public class ImAdminClient {
         postRequired("call_config/set_callback", body, "setCallCallback");
     }
 
-    public record GroupBaseInfo(String name, String faceUrl) {}
+    public record GroupBaseInfo(String name, String faceUrl, String ownerAccount) {}
 
     /** 群名称与头像（get_group_info）。 */
     public java.util.Optional<GroupBaseInfo> getGroupBaseInfo(String groupId) {
@@ -2625,7 +2625,7 @@ public class ImAdminClient {
         }
         Map<String, Object> body = Map.of(
             "GroupIdList", List.of(groupId),
-            "ResponseFilter", Map.of("GroupBaseInfoFilter", List.of("Name", "FaceUrl")));
+            "ResponseFilter", Map.of("GroupBaseInfoFilter", List.of("Name", "FaceUrl", "Owner_Account")));
         Map<?, ?> raw = postReturning(buildUrl("group_open_http_svc/get_group_info"), body, "getGroupBaseInfo");
         if (raw == null || !imOk(raw)) {
             return java.util.Optional.empty();
@@ -2649,7 +2649,8 @@ public class ImAdminClient {
         }
         return java.util.Optional.of(new GroupBaseInfo(
             name == null ? null : name.trim(),
-            faceUrl == null ? null : faceUrl.trim()));
+            faceUrl == null ? null : faceUrl.trim(),
+            str(m.get("Owner_Account"))));
     }
 
     /** 群名称（get_group_info）。 */
@@ -2672,6 +2673,19 @@ public class ImAdminClient {
                               List<String> memberUserIds,
                               GroupJoinOption applyJoinOption,
                               GroupJoinOption inviteJoinOption) {
+        return createGroup(ownerUserId, groupType, groupName, faceUrl, introduction,
+            memberUserIds, applyJoinOption, inviteJoinOption, null);
+    }
+
+    public String createGroup(String ownerUserId,
+                              String groupType,
+                              String groupName,
+                              String faceUrl,
+                              String introduction,
+                              List<String> memberUserIds,
+                              GroupJoinOption applyJoinOption,
+                              GroupJoinOption inviteJoinOption,
+                              String requestedGroupId) {
         if (api == null) {
             throw new ImRestException("IM_NOT_CONFIGURED", 0);
         }
@@ -2684,6 +2698,12 @@ public class ImAdminClient {
         body.put("Owner_Account", ownerUserId.trim());
         body.put("Type", groupType.trim());
         body.put("Name", groupName.trim());
+        if (requestedGroupId != null && !requestedGroupId.isBlank()) {
+            body.put("GroupId", requestedGroupId.trim());
+        }
+        if ("Public".equals(groupType.trim())) {
+            body.put("MaxMemberNum", 6000);
+        }
         if (faceUrl != null && !faceUrl.isBlank()) {
             body.put("FaceUrl", faceUrl.trim());
         }

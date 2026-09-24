@@ -93,6 +93,11 @@ public final class ApiErrorMessages {
             case "FOLDER_NAME_CONFLICT" -> "分组名称已存在";
             case "GROUP_JOIN_LIMIT_EXCEEDED" -> "部分用户加入群数量已达上限";
             case "GROUP_CREATE_LIMIT_COMMUNITY" -> "社群创建数量已达上限";
+            case "COMMUNITY_PRICE_CHANGED" -> "超级大群价格已更新，请重新确认";
+            case "COMMUNITY_PAYMENT_REQUIRED" -> "创建超级大群需付费";
+            case "GROUP_CREATE_REQUEST_ID_REQUIRED", "GROUP_CREATE_REQUEST_ID_INVALID" -> "建群请求编号无效";
+            case "GROUP_CREATE_REQUEST_CONFLICT" -> "建群请求编号冲突";
+            case "PAY_PIN_REQUIRED" -> "请输入支付密码";
             case "CREATE_LIMIT_EXCEEDED" -> "建群数量已达上限";
             case "EXCHANGE_MAINTENANCE" -> "正在维护";
             case "USER_BLOCKED" -> "因拉黑无法添加好友";

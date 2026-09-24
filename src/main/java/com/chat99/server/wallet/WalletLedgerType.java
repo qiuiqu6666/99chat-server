@@ -20,5 +20,7 @@ public enum WalletLedgerType {
     /** 群直播打赏支出。 */
     LIVE_TIP_OUT,
     /** 群直播打赏收入。 */
-    LIVE_TIP_IN
+    LIVE_TIP_IN,
+    /** 超级大群创建费。 */
+    GROUP_CREATE
 }

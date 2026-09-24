@@ -1,6 +1,7 @@
 package com.chat99.server.group;
 
 import com.chat99.server.common.AppSettingRepository;
+import com.chat99.server.wallet.WalletCurrency;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,9 @@ public class GroupCreateLimitConfigService {
     static final String KEY_ENFORCE = "group.create_limit.enforce";
     static final String KEY_LOG_ONLY = "group.create_limit.log_only";
     static final String KEY_USE_IM_FALLBACK = "group.create_limit.use_im_count_fallback";
+    static final String KEY_COMMUNITY_PRICE_CURRENCY = "group.community_create.price_currency";
+    static final String KEY_COMMUNITY_PRICE_MINOR = "group.community_create.price_minor";
+    private static final long DEFAULT_COMMUNITY_PRICE_MINOR = 1_000_000L;
 
     private final AppSettingRepository appSettingRepository;
     private final GroupCreateLimitProperties defaults;
@@ -45,6 +49,36 @@ public class GroupCreateLimitConfigService {
 
     public boolean isUseImCountFallback() {
         return getBooleanOrDefault(KEY_USE_IM_FALLBACK, defaults.useImCountFallback());
+    }
+
+    public WalletCurrency getCommunityPriceCurrency() {
+        try {
+            WalletCurrency currency = WalletCurrency.fromApiCode(
+                getOrDefault(KEY_COMMUNITY_PRICE_CURRENCY, "99"));
+            return currency == WalletCurrency.CNY ? WalletCurrency.PLATFORM : currency;
+        } catch (IllegalArgumentException ignored) {
+            return WalletCurrency.PLATFORM;
+        }
+    }
+
+    public long getCommunityPriceMinor() {
+        try {
+            long value = Long.parseLong(getOrDefault(KEY_COMMUNITY_PRICE_MINOR,
+                Long.toString(DEFAULT_COMMUNITY_PRICE_MINOR)));
+            return value > 0 && value <= 1_000_000_000_000L
+                ? value : DEFAULT_COMMUNITY_PRICE_MINOR;
+        } catch (NumberFormatException ignored) {
+            return DEFAULT_COMMUNITY_PRICE_MINOR;
+        }
+    }
+
+    public void setCommunityPriceCurrency(WalletCurrency currency) {
+        setValue(KEY_COMMUNITY_PRICE_CURRENCY, currency.getApiCode());
+    }
+
+    public void setCommunityPriceMinor(long amount) {
+        if (amount <= 0) throw new IllegalArgumentException("community price must be positive");
+        setValue(KEY_COMMUNITY_PRICE_MINOR, Long.toString(amount));
     }
 
     /** @deprecated Work 建群数已取消 */
