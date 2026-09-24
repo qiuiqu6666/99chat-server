@@ -208,6 +208,9 @@ public class GroupProjectionService {
         if (refuseWriteIfDismissed(groupId)) {
             return 0;
         }
+        if (ImAdminClient.isCommunityGroupId(groupId)) {
+            return syncCommunityMemberPages(groupId);
+        }
         int synced = 0;
         int offset = 0;
         int pageSize = 200;
@@ -229,6 +232,32 @@ public class GroupProjectionService {
                 break;
             }
             offset += pageSize;
+        }
+        return synced;
+    }
+
+    private int syncCommunityMemberPages(String groupId) {
+        int synced = 0;
+        String next = "";
+        int guard = 0;
+        while (guard++ < 10_000) {
+            ImAdminClient.GroupMemberPage page = im.listGroupMemberPageByNext(groupId, next, 100);
+            if (page.rows().isEmpty()) {
+                break;
+            }
+            for (GroupMemberRow row : page.rows()) {
+                upsertMemberRow(
+                    groupId,
+                    row.userUid(),
+                    GroupRoleCodec.fromImRoleOrDefault(row.imRole()),
+                    row.nameCard(),
+                    joinInstant(row.joinTimeSec()));
+                synced++;
+            }
+            if (!page.hasMore()) {
+                break;
+            }
+            next = page.next();
         }
         return synced;
     }

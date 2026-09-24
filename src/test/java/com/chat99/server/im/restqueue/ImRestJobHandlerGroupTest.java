@@ -7,6 +7,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.chat99.server.group.GroupMembershipReconcileService;
 import com.chat99.server.group.GroupProjectionService;
 import com.chat99.server.im.ImAdminClient;
 import com.chat99.server.im.ImGroupRoleCache;
@@ -29,6 +30,7 @@ class ImRestJobHandlerGroupTest {
     @Mock ImRestCircuitBreaker circuitBreaker;
     @Mock ImUserIdService imUserIdService;
     @Mock com.chat99.server.group.GroupImSyncService groupImSyncService;
+    @Mock GroupMembershipReconcileService membershipReconcile;
 
     ImRestJobHandler handler;
 
@@ -36,7 +38,7 @@ class ImRestJobHandlerGroupTest {
     void setUp() {
         handler = new ImRestJobHandler(
             im, projection, roleCache, rateLimiter, circuitBreaker, imUserIdService,
-            groupImSyncService, new ObjectMapper());
+            groupImSyncService, membershipReconcile, new ObjectMapper());
         lenient().when(circuitBreaker.isOpen(any())).thenReturn(false);
         lenient().when(rateLimiter.acquire(any(), eq(2_000L))).thenReturn(true);
     }
@@ -66,17 +68,12 @@ class ImRestJobHandlerGroupTest {
     @Test
     void refreshRole_notMember_removesLocal() {
         when(imUserIdService.toImAccount("u1")).thenReturn("u1");
-        when(im.getRoleInGroupResult("g1", "u1"))
-            .thenReturn(new com.chat99.server.im.ImAdminClient.ImRoleFetchResult(
-                "NotMember",
-                com.chat99.server.im.ImAdminClient.ImRoleFetchResult.Status.OK,
-                0));
         ImRestJob job = new ImRestJob(
             "j1", ImRestJob.Type.REFRESH_ROLE, "g1", "u1", null, 0, 1L, "t",
             null, null, null, null);
 
         assertThat(handler.handle(job)).isEqualTo(ImRestJobHandler.Outcome.DONE);
-        verify(projection).onMembersRemoved("g1", List.of("u1"));
+        verify(membershipReconcile).reconcileUsers("g1", List.of("u1"));
         verify(roleCache).evict("g1", "u1");
     }
 

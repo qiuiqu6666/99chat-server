@@ -1384,21 +1384,84 @@ public class ImAdminClient {
             str(m.get("Notification"))));
     }
 
-    /** 群成员分页（get_group_member_info）。 */
-    @SuppressWarnings("unchecked")
+    /** 群成员分页（get_group_member_info）。社群必须走 Next，Offset 会重复同一页。 */
     public List<GroupMemberRow> listGroupMemberRows(String groupId, int offset, int limit) {
         if (api == null || groupId == null || groupId.isBlank() || limit <= 0) {
             return List.of();
         }
+        if (isCommunityGroupId(groupId)) {
+            return listCommunityMemberRows(groupId.trim(), Math.max(offset, 0), limit);
+        }
+        return listGroupMemberRowsByOffset(groupId.trim(), Math.max(offset, 0), limit);
+    }
+
+    public GroupMemberPage listGroupMemberPageByNext(String groupId, String next, int limit) {
+        if (api == null || groupId == null || groupId.isBlank() || limit <= 0) {
+            return GroupMemberPage.empty();
+        }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("GroupId", groupId.trim());
+        body.put("Limit", Math.min(Math.max(limit, 1), 100));
+        body.put("Next", next == null ? "" : next);
+        Map<?, ?> raw = postReturning(
+            buildUrl("group_open_http_svc/get_group_member_info"), body, "listGroupMemberPageByNext");
+        if (raw == null || !imOk(raw)) {
+            return GroupMemberPage.empty();
+        }
+        List<GroupMemberRow> rows = parseMemberRows(raw);
+        Object nextObj = raw.get("Next");
+        String nextVal = nextObj == null ? "" : String.valueOf(nextObj).trim();
+        if ("0".equals(nextVal) || nextVal.equals(next == null ? "" : next)) {
+            nextVal = "";
+        }
+        return new GroupMemberPage(rows, nextVal);
+    }
+
+    public record GroupMemberPage(List<GroupMemberRow> rows, String next) {
+        public static GroupMemberPage empty() {
+            return new GroupMemberPage(List.of(), "");
+        }
+
+        public boolean hasMore() {
+            return next != null && !next.isBlank() && !"0".equals(next);
+        }
+    }
+
+    private List<GroupMemberRow> listGroupMemberRowsByOffset(String groupId, int offset, int limit) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("GroupId", groupId);
         body.put("Limit", Math.min(Math.max(limit, 1), 200));
-        body.put("Offset", Math.max(offset, 0));
+        body.put("Offset", offset);
         Map<?, ?> raw = postReturning(
             buildUrl("group_open_http_svc/get_group_member_info"), body, "listGroupMemberRows");
         if (raw == null || !imOk(raw)) {
             return List.of();
         }
+        return parseMemberRows(raw);
+    }
+
+    private List<GroupMemberRow> listCommunityMemberRows(String groupId, int offset, int limit) {
+        List<GroupMemberRow> all = new ArrayList<>();
+        String next = "";
+        int guard = 0;
+        int need = offset + limit;
+        while (all.size() < need && guard++ < 10_000) {
+            GroupMemberPage page = listGroupMemberPageByNext(groupId, next, 100);
+            if (page.rows().isEmpty()) {
+                break;
+            }
+            all.addAll(page.rows());
+            if (!page.hasMore()) {
+                break;
+            }
+            next = page.next();
+        }
+        int from = Math.min(offset, all.size());
+        int to = Math.min(from + limit, all.size());
+        return List.copyOf(all.subList(from, to));
+    }
+
+    private static List<GroupMemberRow> parseMemberRows(Map<?, ?> raw) {
         Object list = raw.get("MemberList");
         if (!(list instanceof List<?> arr)) {
             return List.of();
@@ -2814,12 +2877,65 @@ public class ImAdminClient {
         return all;
     }
 
-    /** 群成员 userId 列表（get_group_member_info，分页）。 */
+    /** 群成员 userId 列表（get_group_member_info，分页）。社群走 Next 游标。 */
     public List<String> listGroupMemberUserIds(String groupId, int maxMembers) {
         if (api == null || groupId == null || groupId.isBlank()) {
             return List.of();
         }
         int limit = maxMembers <= 0 ? Integer.MAX_VALUE : maxMembers;
+        return isCommunityGroupId(groupId)
+            ? listGroupMemberUserIdsByNext(groupId.trim(), limit)
+            : listGroupMemberUserIdsByOffset(groupId.trim(), limit);
+    }
+
+    public Map<String, String> getRolesInGroup(String groupId, List<String> userIds) {
+        Map<String, String> out = new LinkedHashMap<>();
+        if (api == null || groupId == null || groupId.isBlank() || userIds == null || userIds.isEmpty()) {
+            return out;
+        }
+        String gid = groupId.trim();
+        List<String> ids = new ArrayList<>();
+        for (String userId : userIds) {
+            if (userId != null && !userId.isBlank()) {
+                ids.add(userId.trim());
+            }
+        }
+        int page = 200;
+        for (int i = 0; i < ids.size(); i += page) {
+            List<String> batch = ids.subList(i, Math.min(i + page, ids.size()));
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("GroupId", gid);
+            body.put("User_Account", batch);
+            Map<?, ?> raw = postReturning(
+                buildUrl("group_open_http_svc/get_role_in_group"),
+                body,
+                "getRolesInGroup groupId=" + gid + " batch=" + batch.size());
+            if (raw == null || !imOk(raw)) {
+                continue;
+            }
+            Object list = raw.get("UserIdList");
+            if (!(list instanceof List<?> arr)) {
+                continue;
+            }
+            for (Object item : arr) {
+                if (!(item instanceof Map<?, ?> m)) {
+                    continue;
+                }
+                String account = str(m.get("Member_Account"));
+                if (account == null || account.isBlank()) {
+                    account = str(m.get("UserId"));
+                }
+                String role = str(m.get("Role"));
+                if (account != null && !account.isBlank() && role != null) {
+                    out.put(account.trim(), role.trim());
+                    roleCache.put(gid, account.trim(), role.trim());
+                }
+            }
+        }
+        return out;
+    }
+
+    private List<String> listGroupMemberUserIdsByOffset(String groupId, int limit) {
         List<String> out = new ArrayList<>();
         int offset = 0;
         int pageSize = Math.min(100, limit == Integer.MAX_VALUE ? 100 : limit);
@@ -2833,28 +2949,65 @@ public class ImAdminClient {
             if (raw == null || !imOk(raw)) {
                 break;
             }
-            Object list = raw.get("MemberList");
-            if (!(list instanceof List<?> arr) || arr.isEmpty()) {
-                break;
-            }
-            for (Object item : arr) {
-                if (!(item instanceof Map<?, ?> m)) {
-                    continue;
-                }
-                String account = str(m.get("Member_Account"));
-                if (account != null && !account.isBlank()) {
-                    out.add(account.trim());
-                    if (out.size() >= limit) {
-                        return out;
-                    }
-                }
-            }
-            if (arr.size() < pageSize) {
+            int added = appendMemberAccounts(raw, out, limit);
+            if (added < pageSize) {
                 break;
             }
             offset += pageSize;
         }
         return out;
+    }
+
+    private List<String> listGroupMemberUserIdsByNext(String groupId, int limit) {
+        List<String> out = new ArrayList<>();
+        String next = "";
+        int pageSize = Math.min(100, limit == Integer.MAX_VALUE ? 100 : limit);
+        int guard = 0;
+        while (out.size() < limit && guard++ < 10_000) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("GroupId", groupId);
+            body.put("Limit", pageSize);
+            body.put("Next", next);
+            Map<?, ?> raw = postReturning(
+                buildUrl("group_open_http_svc/get_group_member_info"), body, "listGroupMemberUserIdsNext");
+            if (raw == null || !imOk(raw)) {
+                break;
+            }
+            int added = appendMemberAccounts(raw, out, limit);
+            Object nextObj = raw.get("Next");
+            String nextVal = nextObj == null ? "" : String.valueOf(nextObj).trim();
+            if (added == 0 || nextVal.isEmpty() || "0".equals(nextVal) || nextVal.equals(next)) {
+                break;
+            }
+            next = nextVal;
+        }
+        return out;
+    }
+
+    private static int appendMemberAccounts(Map<?, ?> raw, List<String> out, int limit) {
+        Object list = raw.get("MemberList");
+        if (!(list instanceof List<?> arr) || arr.isEmpty()) {
+            return 0;
+        }
+        int added = 0;
+        for (Object item : arr) {
+            if (!(item instanceof Map<?, ?> m)) {
+                continue;
+            }
+            String account = str(m.get("Member_Account"));
+            if (account != null && !account.isBlank()) {
+                out.add(account.trim());
+                added++;
+                if (out.size() >= limit) {
+                    return added;
+                }
+            }
+        }
+        return added;
+    }
+
+    public static boolean isCommunityGroupId(String groupId) {
+        return groupId != null && groupId.trim().startsWith("@TGS#_");
     }
 
     public record OnlineInstance(long instId, String platform, String customIdentifier, String status) {}

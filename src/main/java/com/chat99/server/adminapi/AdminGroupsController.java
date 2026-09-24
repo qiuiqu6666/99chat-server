@@ -97,6 +97,16 @@ public class AdminGroupsController {
         return groups.setGameid(http, admin.username(), req.gId(), req.gameid());
     }
 
+    @PostMapping("/reconcile-members")
+    public AdminGroupsService.GroupMembershipReconcileResult reconcileMembers(
+        HttpServletRequest http,
+        Authentication auth,
+        @Valid @RequestBody GroupReconcileMembersRequest req) {
+        AdminAccess.requirePermission(auth, "group.write");
+        AdminPrincipal admin = AdminAccess.require(auth);
+        return groups.reconcileMembers(http, admin.username(), req.gId());
+    }
+
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record GroupGameEnabledRequest(
         @NotBlank String gId,
@@ -106,4 +116,8 @@ public class AdminGroupsController {
     public record GroupGameidRequest(
         @NotBlank String gId,
         String gameid) {}
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record GroupReconcileMembersRequest(
+        @NotBlank String gId) {}
 }

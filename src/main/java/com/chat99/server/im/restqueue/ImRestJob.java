@@ -31,7 +31,9 @@ public record ImRestJob(
         GROUP_MODIFY_JOIN_OPTIONS,
         GROUP_ADD_MEMBERS,
         GROUP_DELETE_MEMBERS,
-        GROUP_DESTROY
+        GROUP_DESTROY,
+        RECONCILE_GROUP_MEMBERS,
+        RECONCILE_GROUP_USERS
     }
 
     public ImRestJob withAttempt(int nextAttempt) {

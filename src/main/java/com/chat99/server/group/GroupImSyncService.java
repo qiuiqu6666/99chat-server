@@ -117,6 +117,7 @@ public class GroupImSyncService {
         List<String> imAccounts = toImAccounts(members);
         im.addGroupMembers(gid, imAccounts, false);
         log.info("group im sync add_members ok groupId={} count={}", gid, members.size());
+        enqueueMembershipReconcile(gid, members, "im_sync_add");
     }
 
     void trySyncDeleteMembers(String groupId, List<String> memberUserIds) {
@@ -128,6 +129,7 @@ public class GroupImSyncService {
         List<String> imAccounts = toImAccounts(members);
         im.deleteGroupMembers(gid, imAccounts, false);
         log.info("group im sync delete_members ok groupId={} count={}", gid, members.size());
+        enqueueMembershipReconcile(gid, members, "im_sync_delete");
     }
 
     void trySyncDestroyGroup(String groupId) {
@@ -206,8 +208,8 @@ public class GroupImSyncService {
             return;
         }
         try {
+            publisher.enqueueReconcileGroupUsers(groupId, members, reason);
             for (String userId : members) {
-                publisher.enqueueRefreshRole(groupId, userId, reason);
                 publisher.enqueueSyncUserJoined(userId, reason);
             }
         } catch (Exception e) {

@@ -10,6 +10,7 @@ public final class GroupChangeEventSource {
     public static final String REST_KICK = "rest_kick";
     public static final String REST_DISMISS = "rest_dismiss";
     public static final String REST_PROFILE = "rest_profile";
+    public static final String RECONCILE = "reconcile";
 
     private GroupChangeEventSource() {
     }

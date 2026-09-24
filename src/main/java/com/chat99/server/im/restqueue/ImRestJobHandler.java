@@ -2,8 +2,8 @@ package com.chat99.server.im.restqueue;
 
 import com.chat99.server.group.GroupImSyncService;
 import com.chat99.server.group.GroupJoinOption;
+import com.chat99.server.group.GroupMembershipReconcileService;
 import com.chat99.server.group.GroupProjectionService;
-import com.chat99.server.group.GroupRoleCodec;
 import com.chat99.server.im.ImAdminClient;
 import com.chat99.server.im.ImGroupFetchResult;
 import com.chat99.server.im.ImGroupRoleCache;
@@ -15,7 +15,9 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @ConditionalOnProperty(name = "chat99.im.rest-queue.enabled", havingValue = "true", matchIfMissing = true)
@@ -36,6 +38,7 @@ public class ImRestJobHandler {
     private final ImRestCircuitBreaker circuitBreaker;
     private final ImUserIdService imUserIdService;
     private final GroupImSyncService groupImSyncService;
+    private final GroupMembershipReconcileService membershipReconcile;
     private final ObjectMapper json;
 
     public ImRestJobHandler(ImAdminClient im,
@@ -45,6 +48,7 @@ public class ImRestJobHandler {
                             ImRestCircuitBreaker circuitBreaker,
                             ImUserIdService imUserIdService,
                             GroupImSyncService groupImSyncService,
+                            GroupMembershipReconcileService membershipReconcile,
                             ObjectMapper json) {
         this.im = im;
         this.projection = projection;
@@ -53,6 +57,7 @@ public class ImRestJobHandler {
         this.circuitBreaker = circuitBreaker;
         this.imUserIdService = imUserIdService;
         this.groupImSyncService = groupImSyncService;
+        this.membershipReconcile = membershipReconcile;
         this.json = json;
     }
 
@@ -74,6 +79,8 @@ public class ImRestJobHandler {
             case GROUP_ADD_MEMBERS -> groupAddMembers(job);
             case GROUP_DELETE_MEMBERS -> groupDeleteMembers(job);
             case GROUP_DESTROY -> groupDestroy(job);
+            case RECONCILE_GROUP_MEMBERS -> reconcileGroupMembers(job);
+            case RECONCILE_GROUP_USERS -> reconcileGroupUsers(job);
         };
     }
 
@@ -210,26 +217,53 @@ public class ImRestJobHandler {
             return Outcome.RETRY;
         }
         String imAccount = imUserIdService.toImAccount(job.userId());
-        ImAdminClient.ImRoleFetchResult roleResult = im.getRoleInGroupResult(job.groupId(), imAccount);
-        if (roleResult.rateLimited()) {
-            circuitBreaker.open("get-role-in-group");
-            return Outcome.RETRY;
-        }
-        if (roleResult.failed()) {
-            return Outcome.RETRY;
-        }
-        String role = roleResult.role();
-        if (role == null || "NotMember".equals(role)) {
-            projection.onMembersRemoved(job.groupId(), java.util.List.of(imAccount));
+        try {
+            membershipReconcile.reconcileUsers(job.groupId(), List.of(imAccount));
             roleCache.evict(job.groupId(), imAccount);
             return Outcome.DONE;
+        } catch (Exception e) {
+            log.warn("refresh role reconcile failed groupId={} userId={} err={}",
+                job.groupId(), imAccount, e.getMessage());
+            return Outcome.RETRY;
         }
-        projection.onMemberAdded(
-            job.groupId(),
-            imAccount,
-            GroupRoleCodec.fromImRoleOrDefault(role),
-            null);
-        return Outcome.DONE;
+    }
+
+    private Outcome reconcileGroupMembers(ImRestJob job) {
+        if (blank(job.groupId())) {
+            return Outcome.DEAD;
+        }
+        if (!acquire("get-role-in-group")) {
+            return Outcome.RETRY;
+        }
+        try {
+            membershipReconcile.reconcile(job.groupId());
+            return Outcome.DONE;
+        } catch (ResponseStatusException e) {
+            if (e.getStatusCode() == HttpStatus.NOT_FOUND || e.getStatusCode() == HttpStatus.CONFLICT) {
+                return Outcome.DONE;
+            }
+            log.warn("reconcile group members rejected groupId={} err={}", job.groupId(), e.getReason());
+            return Outcome.RETRY;
+        } catch (Exception e) {
+            log.warn("reconcile group members failed groupId={} err={}", job.groupId(), e.getMessage());
+            return Outcome.RETRY;
+        }
+    }
+
+    private Outcome reconcileGroupUsers(ImRestJob job) {
+        if (blank(job.groupId()) || job.memberUserIds() == null || job.memberUserIds().isEmpty()) {
+            return Outcome.DEAD;
+        }
+        if (!acquire("get-role-in-group")) {
+            return Outcome.RETRY;
+        }
+        try {
+            membershipReconcile.reconcileUsers(job.groupId(), job.memberUserIds());
+            return Outcome.DONE;
+        } catch (Exception e) {
+            log.warn("reconcile group users failed groupId={} err={}", job.groupId(), e.getMessage());
+            return Outcome.RETRY;
+        }
     }
 
     private Outcome hydrate(ImRestJob job) {

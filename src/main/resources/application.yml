@@ -87,6 +87,8 @@ chat99:
         get-group-info: ${IM_REST_RL_GET_GROUP_INFO:80}
         get-joined-group-list: ${IM_REST_RL_GET_JOINED:50}
         get-group-member-info: ${IM_REST_RL_GET_MEMBER_INFO:80}
+    membership-reconcile-cron: ${IM_MEMBERSHIP_RECONCILE_CRON:0 */10 * * * ?}
+    membership-reconcile-max-groups: ${IM_MEMBERSHIP_RECONCILE_MAX_GROUPS:20}
     callback:
       enabled: true
       callback-token: ${IM_CALLBACK_TOKEN:}

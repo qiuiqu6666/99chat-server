@@ -115,6 +115,18 @@ public class ImRestQueuePublisher {
             Instant.now().toEpochMilli(), reason, null, null, null, null));
     }
 
+    public void enqueueReconcileGroupMembers(String groupId, String reason) {
+        enqueue(new ImRestJob(
+            newJobId(), ImRestJob.Type.RECONCILE_GROUP_MEMBERS, trim(groupId), null, null, 0,
+            Instant.now().toEpochMilli(), reason, null, null, null, null));
+    }
+
+    public void enqueueReconcileGroupUsers(String groupId, List<String> memberUserIds, String reason) {
+        enqueue(new ImRestJob(
+            newJobId(), ImRestJob.Type.RECONCILE_GROUP_USERS, trim(groupId), null, null, 0,
+            Instant.now().toEpochMilli(), reason, null, null, copyMembers(memberUserIds), null));
+    }
+
     public void enqueue(ImRestJob job) {
         enqueue(job, true);
     }
@@ -214,8 +226,11 @@ public class ImRestQueuePublisher {
                     + ":" + nullToEmpty(job.userId());
             case GROUP_MODIFY_BASE_INFO, GROUP_MODIFY_FACE_URL, GROUP_MODIFY_JOIN_OPTIONS, GROUP_DESTROY ->
                 job.type().name() + ":" + nullToEmpty(job.groupId());
-            case GROUP_ADD_MEMBERS, GROUP_DELETE_MEMBERS ->
-                job.type().name() + ":" + nullToEmpty(job.groupId()) + ":" + membersKey(job.memberUserIds());
+            case GROUP_ADD_MEMBERS, GROUP_DELETE_MEMBERS, RECONCILE_GROUP_USERS ->
+                job.type().name() + ":" + nullToEmpty(job.groupId()) + ":"
+                    + membersKey(job.memberUserIds()) + ":" + nullToEmpty(job.reason());
+            case RECONCILE_GROUP_MEMBERS ->
+                job.type().name() + ":" + nullToEmpty(job.groupId()) + ":" + nullToEmpty(job.reason());
         };
     }
 
@@ -223,7 +238,8 @@ public class ImRestQueuePublisher {
         return switch (job.type()) {
             case REFRESH_ROLE, HYDRATE_GROUP, VERIFY_GROUP_EXISTS,
                  GROUP_MODIFY_BASE_INFO, GROUP_MODIFY_FACE_URL, GROUP_MODIFY_JOIN_OPTIONS,
-                 GROUP_ADD_MEMBERS, GROUP_DELETE_MEMBERS, GROUP_DESTROY ->
+                 GROUP_ADD_MEMBERS, GROUP_DELETE_MEMBERS, GROUP_DESTROY,
+                 RECONCILE_GROUP_MEMBERS, RECONCILE_GROUP_USERS ->
                 job.type().name() + ":" + nullToEmpty(job.groupId());
             case SYNC_USER_JOINED -> job.type().name() + ":" + nullToEmpty(job.userId());
             case FRIEND_ADD_BOTH, FRIEND_DELETE_BOTH ->

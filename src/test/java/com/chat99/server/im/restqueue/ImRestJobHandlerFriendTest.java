@@ -36,6 +36,8 @@ class ImRestJobHandlerFriendTest {
     ImUserIdService imUserIdService;
     @Mock
     com.chat99.server.group.GroupImSyncService groupImSyncService;
+    @Mock
+    com.chat99.server.group.GroupMembershipReconcileService membershipReconcile;
 
     ImRestJobHandler handler;
 
@@ -43,7 +45,7 @@ class ImRestJobHandlerFriendTest {
     void setUp() {
         handler = new ImRestJobHandler(
             im, projection, roleCache, rateLimiter, circuitBreaker, imUserIdService,
-            groupImSyncService, new ObjectMapper());
+            groupImSyncService, membershipReconcile, new ObjectMapper());
         lenient().when(circuitBreaker.isOpen(any())).thenReturn(false);
         lenient().when(rateLimiter.acquire(any(), eq(2_000L))).thenReturn(true);
     }

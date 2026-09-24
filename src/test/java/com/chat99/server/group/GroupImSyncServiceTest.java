@@ -63,21 +63,26 @@ class GroupImSyncServiceTest {
     void trySyncAddMembers_mapsToImAccounts() {
         when(imUserIdService.toIm("a")).thenReturn("im_a");
         when(imUserIdService.toIm("b")).thenReturn("im_b");
+        when(queuePublisher.getIfAvailable()).thenReturn(publisher);
 
         service.trySyncAddMembers("g1", List.of("a", "b"));
 
         verify(im).addGroupMembers("g1", List.of("im_a", "im_b"), false);
-        verify(queuePublisher, never()).getIfAvailable();
+        verify(publisher).enqueueReconcileGroupUsers("g1", List.of("a", "b"), "im_sync_add");
+        verify(publisher).enqueueSyncUserJoined("a", "im_sync_add");
+        verify(publisher).enqueueSyncUserJoined("b", "im_sync_add");
     }
 
     @Test
-    void trySyncDeleteMembers_success_doesNotEnqueue() {
+    void trySyncDeleteMembers_success_enqueuesReconcile() {
         when(imUserIdService.toIm("a")).thenReturn("im_a");
+        when(queuePublisher.getIfAvailable()).thenReturn(publisher);
 
         service.trySyncDeleteMembers("g1", List.of("a"));
 
         verify(im).deleteGroupMembers("g1", List.of("im_a"), false);
-        verify(queuePublisher, never()).getIfAvailable();
+        verify(publisher).enqueueReconcileGroupUsers("g1", List.of("a"), "im_sync_delete");
+        verify(publisher).enqueueSyncUserJoined("a", "im_sync_delete");
     }
 
     @Test

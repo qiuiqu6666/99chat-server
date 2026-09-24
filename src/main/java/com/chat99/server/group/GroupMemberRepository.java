@@ -84,6 +84,9 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
     @Query("SELECT COUNT(e) FROM GroupMember e WHERE e.groupId = :groupId AND e.deleted = false")
     long countActiveByGroupId(@Param("groupId") String groupId);
 
+    @Query("SELECT e.userId FROM GroupMember e WHERE e.groupId = :groupId AND e.deleted = false")
+    List<String> findActiveUserIdsByGroupId(@Param("groupId") String groupId);
+
     @Query("SELECT e FROM GroupMember e WHERE e.userId = :userId AND e.groupId IN :groupIds AND e.deleted = false")
     List<GroupMember> findByUserIdAndGroupIdIn(
         @Param("userId") String userId,

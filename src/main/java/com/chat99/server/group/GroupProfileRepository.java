@@ -14,7 +14,20 @@ public interface GroupProfileRepository extends JpaRepository<GroupProfile, Stri
 
     Page<GroupProfile> findByDismissedTrue(Pageable pageable);
 
+    Page<GroupProfile> findByDismissedFalseAndGroupIdStartingWithOrderByUpdatedAtDesc(
+        String prefix, Pageable pageable);
+
     long countByDismissedTrue();
+
+    @Query("""
+        SELECT p.groupId FROM GroupProfile p
+        WHERE p.dismissed = false
+          AND p.memberCount <> (
+            SELECT COUNT(m) FROM GroupMember m
+            WHERE m.groupId = p.groupId AND m.deleted = false
+          )
+        """)
+    List<String> findGroupIdsWithMemberCountMismatch(Pageable pageable);
 
     /**
      * 找 avatar_url 为 NULL 或空字符串的群（GroupAvatarBackfillJob 用）。

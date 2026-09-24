@@ -2,6 +2,7 @@ package com.chat99.server.adminapi;
 
 import com.chat99.server.group.GroupGameIdService;
 import com.chat99.server.group.GroupGameService;
+import com.chat99.server.group.GroupMembershipReconcileService;
 import com.chat99.server.group.GroupProfile;
 import com.chat99.server.group.GroupProfileRepository;
 import com.chat99.server.im.ImAdminClient;
@@ -42,6 +43,7 @@ public class AdminGroupsService {
     private final GroupGameIdService groupGameIdService;
     private final AdminAuditService auditService;
     private final ImUserIdService imUserIdService;
+    private final GroupMembershipReconcileService membershipReconcile;
 
     public AdminGroupsService(ImAdminClient imAdmin,
                               UserRepository userRepository,
@@ -49,7 +51,8 @@ public class AdminGroupsService {
                               GroupGameService groupGameService,
                               GroupGameIdService groupGameIdService,
                               AdminAuditService auditService,
-                              ImUserIdService imUserIdService) {
+                              ImUserIdService imUserIdService,
+                              GroupMembershipReconcileService membershipReconcile) {
         this.imAdmin = imAdmin;
         this.userRepository = userRepository;
         this.groupProfileRepository = groupProfileRepository;
@@ -57,6 +60,7 @@ public class AdminGroupsService {
         this.groupGameIdService = groupGameIdService;
         this.auditService = auditService;
         this.imUserIdService = imUserIdService;
+        this.membershipReconcile = membershipReconcile;
     }
 
     public GroupListResponse listGroups(
@@ -149,6 +153,29 @@ public class AdminGroupsService {
         auditService.log(http, adminUsername, "group.gameid.set", null,
             Map.of("g_id", gid, "gameid", effective));
         return new GroupGameidResult(true, gid, effective);
+    }
+
+    public GroupMembershipReconcileResult reconcileMembers(HttpServletRequest http, String adminUsername,
+                                                           String groupId) {
+        validateGroupId(groupId);
+        String gid = groupId.trim();
+        GroupMembershipReconcileService.Result result = membershipReconcile.reconcile(gid);
+        auditService.log(http, adminUsername, "group.members.reconcile", null,
+            Map.of("g_id", gid,
+                "removed_local", result.removedLocal(),
+                "added_local", result.addedLocal(),
+                "local_alive_after", result.localAliveAfter(),
+                "im_member_num", result.imMemberNum()));
+        return new GroupMembershipReconcileResult(
+            true,
+            result.groupId(),
+            result.localAliveBefore(),
+            result.imRolesChecked(),
+            result.removedLocal(),
+            result.addedLocal(),
+            result.imMemberNum(),
+            result.localAliveAfter(),
+            result.removedUserIds());
     }
 
     public GroupMembersResponse listMembers(String groupId, int page, int pageSize, String sort) {
@@ -501,6 +528,18 @@ public class AdminGroupsService {
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record GroupGameidResult(boolean ok, String gId, String gameid) {}
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record GroupMembershipReconcileResult(
+        boolean ok,
+        String gId,
+        int localAliveBefore,
+        int imRolesChecked,
+        int removedLocal,
+        int addedLocal,
+        int imMemberNum,
+        int localAliveAfter,
+        List<String> removedUserIds) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record GroupDetailResponse(String source, String gId, Map<String, Object> group) {}
