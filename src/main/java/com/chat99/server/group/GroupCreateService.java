@@ -34,7 +34,8 @@ public class GroupCreateService {
         String clientRequestId,
         String payPin,
         String expectedPriceCurrency,
-        Long expectedPriceMinor) {}
+        Long expectedPriceMinor,
+        boolean channel) {}
 
     private final ImAdminClient im;
     private final ImUserIdService imUserIdService;
@@ -87,8 +88,12 @@ public class GroupCreateService {
     public GroupProfileView createGroup(String creatorUserId, CreateGroupRequest req) {
         validateCreateRequest(req);
         boolean community = GroupCreateLimitConfigService.isCommunity(req.groupType());
-        String requestedGroupId = community ? paidGroupId(req.clientRequestId()) : null;
-        if (community) {
+        if (req.channel() && !community) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CHANNEL_REQUIRES_COMMUNITY");
+        }
+        boolean paidCommunity = community && !req.channel();
+        String requestedGroupId = paidCommunity ? paidGroupId(req.clientRequestId()) : null;
+        if (paidCommunity) {
             if (req.payPin() == null || req.payPin().isBlank()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PAY_PIN_REQUIRED");
             }
@@ -140,9 +145,10 @@ public class GroupCreateService {
         validateInitialMembers(creatorUserId, memberUserIds);
         joinLimitService.assertCanCreateGroup(creatorUserId, groupType, memberUserIds);
 
-        GroupJoinOption apply = req.joinOptions() == null || req.joinOptions().applyJoinOption() == null
-            ? GroupJoinOption.need_permission
-            : req.joinOptions().applyJoinOption();
+        GroupJoinOption apply = req.channel() ? GroupJoinOption.free_access
+            : req.joinOptions() == null || req.joinOptions().applyJoinOption() == null
+                ? GroupJoinOption.need_permission
+                : req.joinOptions().applyJoinOption();
         GroupJoinOption invite = req.joinOptions() == null || req.joinOptions().inviteJoinOption() == null
             ? GroupJoinOption.need_permission
             : req.joinOptions().inviteJoinOption();
@@ -195,6 +201,9 @@ public class GroupCreateService {
             avatarUrl,
             req.introduction(),
             memberUserIds);
+        if (req.channel()) {
+            projectionTx.markChannel(groupId);
+        }
         saveJoinOptions(groupId, apply, invite);
         ownedGroupService.recordCreated(creatorUserId, groupType, groupId);
         if (requestedGroupId != null) {

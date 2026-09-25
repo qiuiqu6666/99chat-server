@@ -43,7 +43,7 @@ public class GroupMuteAllSendGuardService {
             return Optional.empty();
         }
         String groupId = str(body.get("GroupId"));
-        if (groupId == null || !projection.isShutUpAll(groupId)) {
+        if (groupId == null || (!projection.isShutUpAll(groupId) && !projection.isChannel(groupId))) {
             return Optional.empty();
         }
         String from = str(body.get("From_Account"));

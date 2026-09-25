@@ -462,6 +462,21 @@ public class GroupProjectionService {
     }
 
     @Transactional
+    public void markChannel(String groupId) {
+        GroupProfile profile = profileRepository.findById(groupId)
+            .orElseThrow(() -> new IllegalStateException("CHANNEL_GROUP_PROFILE_MISSING"));
+        profile.setChannel(true);
+        profile.setShutUpAll(true);
+        saveProfile(profile);
+    }
+
+    public boolean isChannel(String groupId) {
+        return groupId != null && profileRepository.findById(groupId.trim())
+            .filter(profile -> !profile.isDismissed())
+            .map(GroupProfile::isChannel).orElse(false);
+    }
+
+    @Transactional
     public void syncMemberPageFromIm(String groupId, int offset, int limit) {
         if (refuseWriteIfDismissed(groupId)) {
             return;
@@ -1200,6 +1215,7 @@ public class GroupProjectionService {
             target.setDismissed(false);
         }
         target.setShutUpAll(source.isShutUpAll());
+        target.setChannel(target.isChannel() || source.isChannel());
     }
 
     private void applyFaceUrl(GroupProfile profile, String faceUrl) {

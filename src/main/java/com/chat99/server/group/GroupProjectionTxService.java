@@ -37,4 +37,9 @@ public class GroupProjectionTxService {
         projection.seedGroupAfterCreate(
             groupId, creatorUserId, groupType, groupName, avatarUrl, introduction, memberUserIds);
     }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markChannel(String groupId) {
+        projection.markChannel(groupId);
+    }
 }

@@ -8,6 +8,8 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -128,6 +130,95 @@ class ChatNativeVideoServiceTest {
     }
 
     @Test
+    void permissionRevokedAfterPrepareDoesNotMakeMediaPublicOrSend() {
+        ChatNativeVideoMessage row = pendingRow();
+        stubDeliver(row, readyVideo(1_000L), readyThumb());
+        org.mockito.Mockito.doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN,
+            "CONVERSATION_FORBIDDEN"))
+            .when(authService).requireSendConversation(anyString(), any());
+
+        service.deliver("nvm_1");
+
+        verify(persistence).mark("nvm_1", ChatNativeVideoStatus.failed,
+            "CONVERSATION_FORBIDDEN", null, null);
+        verify(oss, never()).setPublicRead(anyString());
+        verifyNoInteractions(imAdmin);
+    }
+
+    @Test
+    void revokedReferenceAfterPrepareDoesNotMakeMediaPublicOrSend() {
+        ChatNativeVideoMessage row = pendingRow();
+        stubDeliver(row, readyVideo(1_000L), readyThumb());
+        ChatAttachmentReference revoked = authorizedReference();
+        revoked.setState(ChatReferenceState.revoked);
+        when(referenceRepository.findByReferenceId("ref_conversation"))
+            .thenReturn(Optional.of(revoked));
+
+        service.deliver("nvm_1");
+
+        verify(persistence).mark("nvm_1", ChatNativeVideoStatus.failed,
+            "ACCESS_DENIED", null, null);
+        verify(oss, never()).setPublicRead(anyString());
+        verifyNoInteractions(imAdmin);
+    }
+
+    @Test
+    void unknownProviderOutcomeIsNotAutomaticallySentAgain() {
+        ChatNativeVideoMessage row = pendingRow();
+        row.setStatus(ChatNativeVideoStatus.unknown);
+        when(messageRepository.findForUpdate("u1", "task-1"))
+            .thenReturn(Optional.of(row));
+        stubReadyVideoAndThumb();
+
+        ChatNativeVideoService.Prep prep = service.prepare("u1",
+            new ChatNativeVideoService.SendRequest("task-1", "att_video",
+                "ref_conversation", "c2c", "u2", null, null),
+            "https://apiios.99chat.vip");
+
+        assertThat(prep.deliverNow()).isFalse();
+        verifyNoInteractions(imAdmin);
+    }
+
+    @Test
+    void losingTheDurableDispatchPermitCannotPublishMediaOrSend() {
+        stubDeliver(pendingRow(), readyVideo(1_000L), readyThumb());
+        when(persistence.beginDispatch("nvm_1")).thenReturn(false);
+
+        service.deliver("nvm_1");
+
+        verify(oss, never()).setPublicRead(anyString());
+        verifyNoInteractions(imAdmin);
+    }
+
+    @Test
+    void authorizationUnavailableDefersWithoutPublishingOrRejecting() {
+        stubDeliver(pendingRow(), readyVideo(1_000L), readyThumb());
+        org.mockito.Mockito.doThrow(new IllegalStateException("group store unavailable"))
+            .when(authService).requireSendConversation(anyString(), any());
+
+        service.deliver("nvm_1");
+
+        verifyNoInteractions(persistence);
+        verify(oss, never()).setPublicRead(anyString());
+        verifyNoInteractions(imAdmin);
+    }
+
+    @Test
+    void permissionRevokedDuringProbePreventsDispatchAfterTheSecondCheck() {
+        stubDeliver(pendingRow(), readyVideo(1_000L), readyThumb());
+        org.mockito.Mockito.doNothing()
+            .doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "CONVERSATION_FORBIDDEN"))
+            .when(authService).requireSendConversation(anyString(), any());
+
+        service.deliver("nvm_1");
+
+        verify(persistence, never()).beginDispatch(anyString());
+        verify(oss, never()).setPublicRead(anyString());
+        verifyNoInteractions(imAdmin);
+    }
+
+    @Test
     void deliverFallbackUsesVideoSecondZero() {
         ChatNativeVideoMessage row = pendingRow();
         ChatAttachment video = readyVideo(null);
@@ -210,6 +301,7 @@ class ChatNativeVideoServiceTest {
         row.setClientOperationId("task-1");
         row.setReferenceId("ref_conversation");
         row.setConversationType(ChatConversationType.c2c);
+        row.setConversationKey(ChatAttachmentConversationIds.c2c("u1", "u2").conversationKey());
         row.setStatus(ChatNativeVideoStatus.pending);
         row.setImRandom(9);
         row.setMediaBaseUrl("https://image.99chat.vip");
@@ -236,6 +328,9 @@ class ChatNativeVideoServiceTest {
     private ChatAttachment readyThumb() {
         ChatAttachment thumb = new ChatAttachment();
         thumb.setAttachmentId("att_thumb");
+        thumb.setOwnerUserId("u1");
+        thumb.setParentAttachmentId("att_video");
+        thumb.setKind(ChatAttachmentKind.image);
         thumb.setStatus(ChatAttachmentStatus.ready);
         thumb.setObjectKey("thumb-key");
         thumb.setSizeBytes(48_000L);
@@ -247,14 +342,30 @@ class ChatNativeVideoServiceTest {
     }
 
     private void stubDeliver(ChatNativeVideoMessage row, ChatAttachment video, ChatAttachment thumb) {
-        when(messageRepository.findById("nvm_1")).thenReturn(Optional.of(row));
-        when(attachmentRepository.findByAttachmentId("att_video")).thenReturn(Optional.of(video));
-        when(attachmentRepository.findByAttachmentId("att_thumb")).thenReturn(Optional.of(thumb));
-        when(mediaProbeService.fillIfMissing(video)).thenReturn(video);
-        when(mediaService.videoUrl(video, "https://image.99chat.vip")).thenReturn("https://cdn/v.mp4");
-        when(mediaService.thumbUrl(thumb, "https://image.99chat.vip")).thenReturn("https://cdn/t.jpg");
-        when(imUserIdService.requireImUserId("u1")).thenReturn("im-u1");
-        when(imUserIdService.requireImUserId("u2")).thenReturn("im-u2");
+        lenient().when(props.nativeVideoMessageEnabled()).thenReturn(true);
+        lenient().when(props.sendEnabled()).thenReturn(true);
+        lenient().when(persistence.beginDispatch("nvm_1")).thenReturn(true);
+        lenient().when(messageRepository.findById("nvm_1")).thenReturn(Optional.of(row));
+        lenient().when(attachmentRepository.findByAttachmentId("att_video")).thenReturn(Optional.of(video));
+        lenient().when(attachmentRepository.findByAttachmentId("att_thumb")).thenReturn(Optional.of(thumb));
+        lenient().when(referenceRepository.findByReferenceId("ref_conversation"))
+            .thenReturn(Optional.of(authorizedReference()));
+        lenient().when(mediaProbeService.fillIfMissing(video)).thenReturn(video);
+        lenient().when(mediaService.videoUrl(video, "https://image.99chat.vip")).thenReturn("https://cdn/v.mp4");
+        lenient().when(mediaService.thumbUrl(thumb, "https://image.99chat.vip")).thenReturn("https://cdn/t.jpg");
+        lenient().when(imUserIdService.requireImUserId("u1")).thenReturn("im-u1");
+        lenient().when(imUserIdService.requireImUserId("u2")).thenReturn("im-u2");
+    }
+
+    private ChatAttachmentReference authorizedReference() {
+        ChatAttachmentReference ref = new ChatAttachmentReference();
+        ref.setReferenceId("ref_conversation");
+        ref.setAttachmentId("att_video");
+        ref.setOwnerUserId("u1");
+        ref.setConversationType(ChatConversationType.c2c);
+        ref.setConversationKey(ChatAttachmentConversationIds.c2c("u1", "u2").conversationKey());
+        ref.setState(ChatReferenceState.reserved);
+        return ref;
     }
 
     private void MapViewAssert(java.util.Map<String, Object> view) {

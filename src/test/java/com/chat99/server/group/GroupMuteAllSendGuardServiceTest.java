@@ -47,6 +47,18 @@ class GroupMuteAllSendGuardServiceTest {
     }
 
     @Test
+    void channelRejectsSubscriberEvenWhenMuteProjectionWasReset() {
+        when(projection.isShutUpAll("g1")).thenReturn(false);
+        when(projection.isChannel("g1")).thenReturn(true);
+        when(imUserIdService.isSpecialImAccount("u1")).thenReturn(false);
+        when(memberRepository.findById(new GroupMemberId("g1", "u1")))
+            .thenReturn(Optional.of(member("u1", GroupRoleCodec.MEMBER)));
+
+        assertThat(guard.evaluate(baseBody("u1", textElem())))
+            .contains(GroupMuteAllSendGuardService.REJECT_CODE);
+    }
+
+    @Test
     void allowsOrdinaryMemberPureTipWhenMuted() throws Exception {
         when(projection.isShutUpAll("g1")).thenReturn(true);
         when(imUserIdService.isSpecialImAccount("u1")).thenReturn(false);

@@ -25,8 +25,7 @@ public class ChatNativeVideoPersistence {
         if (row == null) {
             return false;
         }
-        if (row.getStatus() == ChatNativeVideoStatus.sent
-            || row.getStatus() == ChatNativeVideoStatus.failed) {
+        if (row.getStatus() != ChatNativeVideoStatus.pending) {
             return false;
         }
         Instant now = Instant.now();
@@ -35,6 +34,23 @@ public class ChatNativeVideoPersistence {
         }
         row.setLockUntil(now.plus(LOCK_TTL));
         row.setUpdatedAt(now);
+        messageRepository.save(row);
+        return true;
+    }
+
+    /** The durable point after which a crashed request must be reconciled,
+     * never automatically dispatched again. The row lock serializes callers
+     * from HTTP and the scheduled recovery job. */
+    @Transactional
+    public boolean beginDispatch(String operationId) {
+        ChatNativeVideoMessage row = messageRepository.findByIdForUpdate(operationId).orElse(null);
+        if (row == null || row.getStatus() != ChatNativeVideoStatus.pending) {
+            return false;
+        }
+        row.setStatus(ChatNativeVideoStatus.unknown);
+        row.setFailCode(null);
+        row.setLockUntil(null);
+        row.setUpdatedAt(Instant.now());
         messageRepository.save(row);
         return true;
     }
@@ -55,7 +71,8 @@ public class ChatNativeVideoPersistence {
         row.setUpdatedAt(now);
         messageRepository.save(row);
         ChatAttachmentReference ref = referenceRepository.findByReferenceId(row.getReferenceId()).orElse(null);
-        if (ref != null && ref.getState() != ChatReferenceState.confirmed) {
+        if (ref != null && ref.getState() == ChatReferenceState.reserved
+            && (ref.getExpiresAt() == null || ref.getExpiresAt().isAfter(now))) {
             ref.setState(ChatReferenceState.confirmed);
             ref.setConfirmedAt(now);
             ref.setExpiresAt(null);

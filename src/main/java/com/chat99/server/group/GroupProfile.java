@@ -25,6 +25,10 @@ public class GroupProfile {
     @Column(name = "group_type", nullable = false, length = 32)
     private String groupType;
 
+    /** 业务频道标记；IM 中仍为 Community，不能依赖 IM 群类型区分。 */
+    @Column(name = "is_channel", nullable = false)
+    private boolean channel;
+
     @Column(name = "group_name", nullable = false, length = 512)
     private String groupName = "";
 

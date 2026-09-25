@@ -19,7 +19,19 @@ public record GroupProfileView(
     Long noticeUpdatedAt,
     String noticeUpdatedBy,
     boolean gameEnabled,
-    String gameid) {
+    String gameid,
+    boolean channel) {
+
+    public GroupProfileView(String groupId, String groupType, String groupName,
+                            String displayAlias, String avatarUrl, String avatarPreviewUrl,
+                            int avatarVersion, String notice, int memberCount, int memberNum,
+                            int myRole, String myNameCard, Long joinedAt, long updatedAt,
+                            String ownerUserId, Long noticeUpdatedAt, String noticeUpdatedBy,
+                            boolean gameEnabled, String gameid) {
+        this(groupId, groupType, groupName, displayAlias, avatarUrl, avatarPreviewUrl,
+            avatarVersion, notice, memberCount, memberNum, myRole, myNameCard, joinedAt,
+            updatedAt, ownerUserId, noticeUpdatedAt, noticeUpdatedBy, gameEnabled, gameid, false);
+    }
 
     public static GroupProfileView forList(GroupProfile profile, GroupMember member, boolean gameEnabled) {
         return base(profile, member, false, gameEnabled);
@@ -33,7 +45,7 @@ public record GroupProfileView(
         return new GroupProfileView(
             groupId, groupType, groupName, displayAlias, avatarUrl, avatarPreviewUrl, avatarVersion, notice,
             memberCount, memberNum, myRole, myNameCard, joinedAt, updatedAt, ownerUserId, noticeUpdatedAt,
-            noticeUpdatedBy, gameEnabled, gameid);
+            noticeUpdatedBy, gameEnabled, gameid, channel);
     }
 
     public GroupProfileView withMemberCount(int memberCount) {
@@ -41,7 +53,7 @@ public record GroupProfileView(
         return new GroupProfileView(
             groupId, groupType, groupName, displayAlias, avatarUrl, avatarPreviewUrl, avatarVersion, notice,
             n, n, myRole, myNameCard, joinedAt, updatedAt, ownerUserId, noticeUpdatedAt, noticeUpdatedBy,
-            gameEnabled, gameid);
+            gameEnabled, gameid, channel);
     }
 
     private static GroupProfileView base(
@@ -77,6 +89,7 @@ public record GroupProfileView(
             detail ? noticeUpdatedAt : null,
             detail ? noticeUpdatedBy : null,
             gameEnabled,
-            gameid);
+            gameid,
+            profile.isChannel());
     }
 }
