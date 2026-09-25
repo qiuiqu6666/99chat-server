@@ -101,15 +101,9 @@ public class GroupCreateLimitConfigService {
         return getIntOrDefault(KEY_MAX_COMMUNITY_JOIN, defaults.maxCommunityJoinGroups());
     }
 
-    /** 建群数量限制：仅 Community；Work 返回 -1。 */
+    /** 建群数量不限制；Community 只靠付费，不再按人卡上限。 */
     public int limitForType(String groupType) {
-        if (groupType == null) {
-            return -1;
-        }
-        return switch (groupType.trim()) {
-            case "Community" -> getMaxCommunityGroups();
-            default -> -1;
-        };
+        return -1;
     }
 
     /**

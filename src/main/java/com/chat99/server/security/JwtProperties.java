@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record JwtProperties(long expireSeconds, String secret) {
     public JwtProperties {
         if (expireSeconds <= 0L) {
-            expireSeconds = 7776000L;
+            expireSeconds = 31536000L;
         }
         if (secret == null) {
             secret = "";

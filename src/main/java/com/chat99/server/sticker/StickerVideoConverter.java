@@ -23,6 +23,8 @@ public class StickerVideoConverter {
 
     private final StickerProperties props;
     private volatile Boolean available;
+    private volatile String resolvedFfmpeg;
+    private volatile String resolvedFfprobe;
 
     public StickerVideoConverter(StickerProperties props) {
         this.props = props;
@@ -36,9 +38,9 @@ public class StickerVideoConverter {
             if (available != null) {
                 return available;
             }
-            available = probeFfmpeg();
+            available = resolveBinaries();
             if (!available) {
-                log.warn("ffmpeg not available at path={}", props.ffmpegPath());
+                log.warn("ffmpeg not available configuredPath={}", props.ffmpegPath());
             }
             return available;
         }
@@ -102,7 +104,7 @@ public class StickerVideoConverter {
                 + "split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse=dither=bayer",
             fps, size, size);
         List<String> cmd = new ArrayList<>();
-        cmd.add(props.ffmpegPath());
+        cmd.add(ffmpegBin());
         cmd.add("-y");
         cmd.add("-i");
         cmd.add(input.toString());
@@ -121,7 +123,7 @@ public class StickerVideoConverter {
 
     private double probeDuration(Path input) throws IOException, InterruptedException {
         List<String> cmd = List.of(
-            props.ffprobePath(),
+            ffprobeBin(),
             "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
@@ -140,7 +142,7 @@ public class StickerVideoConverter {
 
     private int[] probeGifDimensions(Path gif) throws IOException, InterruptedException {
         List<String> cmd = List.of(
-            props.ffprobePath(),
+            ffprobeBin(),
             "-v", "error",
             "-select_streams", "v:0",
             "-show_entries", "stream=width,height",
@@ -162,14 +164,45 @@ public class StickerVideoConverter {
         return new int[] {size, size};
     }
 
-    private boolean probeFfmpeg() {
-        try {
-            exec(List.of(props.ffmpegPath(), "-version"), 5);
-            exec(List.of(props.ffprobePath(), "-version"), 5);
-            return true;
-        } catch (Exception e) {
+    private String ffmpegBin() {
+        return resolvedFfmpeg != null ? resolvedFfmpeg : props.ffmpegPath();
+    }
+
+    private String ffprobeBin() {
+        return resolvedFfprobe != null ? resolvedFfprobe : props.ffprobePath();
+    }
+
+    private boolean resolveBinaries() {
+        String ffmpeg = firstWorking(List.of(
+            props.ffmpegPath(),
+            "/usr/bin/ffmpeg",
+            "/www/server/ffmpeg/ffmpeg-6.1/ffmpeg"));
+        String ffprobe = firstWorking(List.of(
+            props.ffprobePath(),
+            "/usr/bin/ffprobe",
+            "/www/server/ffmpeg/ffmpeg-6.1/ffprobe"));
+        if (ffmpeg == null || ffprobe == null) {
             return false;
         }
+        resolvedFfmpeg = ffmpeg;
+        resolvedFfprobe = ffprobe;
+        log.info("sticker ffmpeg ready ffmpeg={} ffprobe={}", ffmpeg, ffprobe);
+        return true;
+    }
+
+    private String firstWorking(List<String> candidates) {
+        for (String path : candidates) {
+            if (path == null || path.isBlank()) {
+                continue;
+            }
+            try {
+                exec(List.of(path, "-version"), 5);
+                return path;
+            } catch (Exception ignored) {
+                // try next
+            }
+        }
+        return null;
     }
 
     private String exec(List<String> cmd, int timeoutSeconds) throws IOException, InterruptedException {

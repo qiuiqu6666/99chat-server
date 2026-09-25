@@ -205,7 +205,7 @@ chat99:
       skip-ttl-days: ${MSG_ARCHIVE_MSG_ID_BACKFILL_SKIP_TTL_DAYS:30}
       fixed-delay-ms: ${MSG_ARCHIVE_MSG_ID_BACKFILL_DELAY_MS:60000}
   jwt:
-    expire-seconds: 7776000
+    expire-seconds: 31536000
     secret: ${JWT_SECRET_FALLBACK:}
   sms:
     smsbao:
@@ -297,8 +297,8 @@ chat99:
     video-max-fps: 20
     video-conversion-timeout-seconds: 120
     video-conversion-enabled: true
-    ffmpeg-path: ${FFMPEG_PATH:/www/server/ffmpeg/ffmpeg-6.1/ffmpeg}
-    ffprobe-path: ${FFPROBE_PATH:/www/server/ffmpeg/ffmpeg-6.1/ffprobe}
+    ffmpeg-path: ${FFMPEG_PATH:/usr/bin/ffmpeg}
+    ffprobe-path: ${FFPROBE_PATH:/usr/bin/ffprobe}
     user-upload-pack-id: user_upload
     user-upload-name: 我的上传
     user-upload-icon-url: ${STICKER_UPLOAD_ICON_URL:}
@@ -421,7 +421,7 @@ chat99:
       expire-fixed-delay-ms: 300000
       cleanup-cron: "0 20 4 * * ?"
       reconcile-fixed-delay-ms: 600000
-    ffprobe-path: ${FFPROBE_PATH:/www/server/ffmpeg/ffmpeg-6.1/ffprobe}
+    ffprobe-path: ${FFPROBE_PATH:/usr/bin/ffprobe}
     media-probe-timeout-seconds: 10
   oss:
     max-upload-bytes: 10485760

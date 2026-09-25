@@ -226,6 +226,8 @@
 										<!-- 加群/建群限额：本地含 joinLimitForGroupType，勿被 bootstrap 旧 class 覆盖 -->
 										<exclude name="com/chat99/server/group/GroupCreateLimitConfigService*.class"/>
 										<exclude name="com/chat99/server/group/GroupCreateLimitProperties*.class"/>
+										<!-- 表情视频转 GIF：本地回退 /usr/bin/ffmpeg，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/sticker/StickerVideoConverter*.class"/>
 										<exclude name="com/chat99/server/group/GroupJoinLimitService*.class"/>
 										<exclude name="com/chat99/server/group/GroupJoinLimitExceededException*.class"/>
 										<exclude name="com/chat99/server/group/ImGroupBeforeJoinCallbackService*.class"/>
@@ -646,8 +648,7 @@
 								<exclude>com/chat99/server/feedback/FeedbackStatus.java</exclude>
 								<exclude>com/chat99/server/group/GroupAvatarService.java</exclude>
 								<exclude>com/chat99/server/group/GroupChangeEventRepository.java</exclude>
-								<exclude>com/chat99/server/group/GroupCreateLimitConfigService.java</exclude>
-								<exclude>com/chat99/server/group/GroupCreateLimitProperties.java</exclude>
+								<!-- GroupCreateLimit* 由本地源码编译（Community 创建数不限制），勿再 exclude -->
 								<exclude>com/chat99/server/group/GroupFanoutProperties.java</exclude>
 								<exclude>com/chat99/server/group/GroupGovernanceService.java</exclude>
 								<exclude>com/chat99/server/group/GroupJoinApplicationDismissId.java</exclude>

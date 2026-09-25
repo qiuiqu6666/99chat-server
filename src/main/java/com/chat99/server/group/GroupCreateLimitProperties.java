@@ -28,14 +28,8 @@ public record GroupCreateLimitProperties(
         }
     }
 
-    /** 仅 Community 建群受限；Work 恒不限制创建数。 */
+    /** 建群数量不限制；Community 只靠付费。 */
     public int limitForType(String groupType) {
-        if (groupType == null) {
-            return -1;
-        }
-        return switch (groupType.trim()) {
-            case "Community" -> maxCommunityGroups;
-            default -> -1;
-        };
+        return -1;
     }
 }
