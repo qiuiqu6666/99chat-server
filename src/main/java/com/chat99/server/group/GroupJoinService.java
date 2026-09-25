@@ -54,7 +54,8 @@ public class GroupJoinService {
         String displayAlias,
         String avatarUrl,
         int memberCount,
-        String introduction) {}
+        String introduction,
+        boolean channel) {}
 
     public record InviteMembersRequest(List<String> userIds, String message) {}
 
@@ -158,6 +159,10 @@ public class GroupJoinService {
         access.requireBackendInviteGroup(groupId);
         access.requireMember(groupId, callerUserId);
         GroupSettings settings = resolveSettings(groupId);
+        if (groupProjection.isChannel(groupId)) {
+            return new JoinOptionsView(GroupJoinOption.free_access,
+                settings.getInviteJoinOption(), true, true);
+        }
         return toJoinOptionsView(settings);
     }
 
@@ -166,12 +171,15 @@ public class GroupJoinService {
         access.requireBackendInviteGroup(groupId);
         access.requireAdminRole(groupId, callerUserId);
         GroupSettings row = loadOrCreateSettings(groupId);
-        row.setApplyJoinOption(req.applyJoinOption());
+        boolean channel = groupProjection.isChannel(groupId);
+        GroupJoinOption applyOption = channel
+            ? GroupJoinOption.free_access : req.applyJoinOption();
+        row.setApplyJoinOption(applyOption);
         row.setInviteJoinOption(req.inviteJoinOption());
-        row.setAllowJoinByQrCode(req.allowJoinByQrCode());
-        row.setAllowJoinByAlias(req.allowJoinByAlias());
+        row.setAllowJoinByQrCode(channel || req.allowJoinByQrCode());
+        row.setAllowJoinByAlias(channel || req.allowJoinByAlias());
         settingsRepository.save(row);
-        groupImSyncService.syncJoinOptions(groupId, req.applyJoinOption(), req.inviteJoinOption());
+        groupImSyncService.syncJoinOptions(groupId, applyOption, req.inviteJoinOption());
         notifyJoinOptionChanged(groupId, callerUserId, row);
         return toJoinOptionsView(row);
     }
@@ -187,7 +195,9 @@ public class GroupJoinService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "GROUP_NOT_FOUND");
         }
         GroupSettings settings = resolveSettings(profile.getGroupId());
-        assertJoinEntryAllowed(settings, joinSource);
+        if (!profile.isChannel()) {
+            assertJoinEntryAllowed(settings, joinSource);
+        }
         return toJoinLookupView(profile);
     }
 
@@ -253,13 +263,17 @@ public class GroupJoinService {
         joinLimitService.assertUsersCanJoin(List.of(callerUserId), groupType, List.of());
         GroupSettings settings = resolveSettings(groupId);
         GroupJoinSource joinSource = req == null ? null : req.joinSource();
-        assertJoinEntryAllowed(settings, joinSource);
-        if (settings.getApplyJoinOption() == GroupJoinOption.disabled) {
+        if (!groupProjection.isChannel(groupId)) {
+            assertJoinEntryAllowed(settings, joinSource);
+        }
+        boolean channel = groupProjection.isChannel(groupId);
+        if (!channel && settings.getApplyJoinOption() == GroupJoinOption.disabled) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "JOIN_DISABLED");
         }
-        if (settings.getApplyJoinOption() == GroupJoinOption.free_access) {
+        if (channel || settings.getApplyJoinOption() == GroupJoinOption.free_access) {
             List<InviteMemberResultItem> added = addMembersDirect(
-                groupId, callerUserId, List.of(callerUserId), GroupChangeEventSource.REST_JOIN,
+                groupId, callerUserId, List.of(callerUserId),
+                channel ? null : GroupChangeEventSource.REST_JOIN,
                 null, GroupMemberJoinChannel.GROUP_ID);
             InviteMemberResultItem item = added.isEmpty()
                 ? failed(callerUserId, "ADD_FAILED")
@@ -816,7 +830,8 @@ public class GroupJoinService {
             displayAlias,
             avatarDefaults.resolve(profile.getAvatarUrl()),
             profile.getMemberCount(),
-            "");
+            "",
+            profile.isChannel());
     }
 
     private java.util.Optional<GroupProfile> resolveProfileByKeyword(String keyword) {

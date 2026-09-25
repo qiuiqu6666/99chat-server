@@ -210,6 +210,9 @@ public class ImGroupRealtimeCallbackService {
         this.groupProjection.onMembersJoined(groupId, membersIm, invitedBy, joinChannel);
         List<String> members = toBusinessIds(membersIm);
         this.groupImSyncService.enqueueMembershipReconcile(groupId, members, "im_callback_join");
+        if (this.groupProjection.isChannel(groupId)) {
+            return;
+        }
         if (this.groupChangeEmitter.hasRecentDuplicate(groupId, "member_added", members)) {
             log.debug("skip duplicate member_added callback groupId={}", (Object)groupId);
             return;
@@ -231,6 +234,9 @@ public class ImGroupRealtimeCallbackService {
         this.groupProjection.onMembersJoined(groupId, membersIm, invitedBy, joinChannel);
         List<String> members = toBusinessIds(membersIm);
         this.groupImSyncService.enqueueMembershipReconcile(groupId, members, "im_callback_invite");
+        if (this.groupProjection.isChannel(groupId)) {
+            return;
+        }
         if (this.groupChangeEmitter.hasRecentDuplicate(groupId, "member_added", members)) {
             log.debug("skip duplicate member_added callback groupId={}", (Object)groupId);
             return;

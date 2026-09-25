@@ -249,8 +249,15 @@ public class ChatNativeVideoService {
         if (!persistence.beginDispatch(operationId)) {
             return;
         }
-        oss.setPublicRead(video.getObjectKey());
-        oss.setPublicRead(thumb.getObjectKey());
+        try {
+            oss.setPublicRead(video.getObjectKey());
+            oss.setPublicRead(thumb.getObjectKey());
+        } catch (RuntimeException e) {
+            log.warn("native video media access unavailable operationId={} errorType={}",
+                operationId, e.getClass().getSimpleName());
+            persistence.mark(operationId, ChatNativeVideoStatus.failed, "MEDIA_ACCESS_UNAVAILABLE", null, null);
+            return;
+        }
         try {
             ImAdminClient.NativeVideoSendResult result;
             try {

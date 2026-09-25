@@ -210,12 +210,13 @@ public class ChatAttachmentOssClient {
 
     public void setPublicRead(String objectKey) {
         if (objectKey == null || objectKey.isBlank()) {
-            return;
+            throw new IllegalArgumentException("object key is required for media access");
         }
         try {
             requireOss().setObjectAcl(currentBucket, objectKey, CannedAccessControlList.PublicRead);
         } catch (Exception e) {
             log.warn("chat attachment public-read failed key={} err={}", objectKey, e.getMessage());
+            throw new IllegalStateException("media access configuration failed", e);
         }
     }
 

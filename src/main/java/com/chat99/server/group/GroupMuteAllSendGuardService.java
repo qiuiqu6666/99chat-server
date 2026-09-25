@@ -43,7 +43,12 @@ public class GroupMuteAllSendGuardService {
             return Optional.empty();
         }
         String groupId = str(body.get("GroupId"));
-        if (groupId == null || (!projection.isShutUpAll(groupId) && !projection.isChannel(groupId))) {
+        if (groupId == null) {
+            return Optional.empty();
+        }
+        boolean allMuted = projection.isShutUpAll(groupId);
+        boolean channel = projection.isChannel(groupId);
+        if (!channel && !allMuted) {
             return Optional.empty();
         }
         String from = str(body.get("From_Account"));
@@ -56,7 +61,7 @@ public class GroupMuteAllSendGuardService {
         if (isAdminOrOwner(groupId, from)) {
             return Optional.empty();
         }
-        if (GroupTipImSupport.isPureGroupTipMessage(body, json)) {
+        if (!channel && GroupTipImSupport.isPureGroupTipMessage(body, json)) {
             return Optional.empty();
         }
         log.debug("group mute-all reject groupId={} from={}", groupId, from);

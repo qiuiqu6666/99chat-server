@@ -191,6 +191,20 @@ class ChatNativeVideoServiceTest {
     }
 
     @Test
+    void mediaAccessFailureDoesNotReportSendOrCallIm() {
+        stubDeliver(pendingRow(), readyVideo(1_000L), readyThumb());
+        org.mockito.Mockito.doThrow(new IllegalStateException("ACL unavailable"))
+            .when(oss).setPublicRead("thumb-key");
+
+        service.deliver("nvm_1");
+
+        verify(persistence).mark("nvm_1", ChatNativeVideoStatus.failed,
+            "MEDIA_ACCESS_UNAVAILABLE", null, null);
+        verify(imAdmin, never()).sendNativeVideo(anyBoolean(), anyString(), anyString(),
+            anyInt(), any(), anyString());
+    }
+
+    @Test
     void authorizationUnavailableDefersWithoutPublishingOrRejecting() {
         stubDeliver(pendingRow(), readyVideo(1_000L), readyThumb());
         org.mockito.Mockito.doThrow(new IllegalStateException("group store unavailable"))

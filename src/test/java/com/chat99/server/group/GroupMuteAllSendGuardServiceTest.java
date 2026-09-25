@@ -59,6 +59,28 @@ class GroupMuteAllSendGuardServiceTest {
     }
 
     @Test
+    void channelRejectsSubscriberCustomTip() throws Exception {
+        when(projection.isChannel("g1")).thenReturn(true);
+        when(memberRepository.findById(new GroupMemberId("g1", "u1")))
+            .thenReturn(Optional.of(member("u1", GroupRoleCodec.MEMBER)));
+
+        assertThat(guard.evaluate(baseBody("u1", tipElem())))
+            .contains(GroupMuteAllSendGuardService.REJECT_CODE);
+    }
+
+    @Test
+    void channelAllowsOwnerAndAdmin() {
+        when(projection.isChannel("g1")).thenReturn(true);
+        when(memberRepository.findById(new GroupMemberId("g1", "admin1")))
+            .thenReturn(Optional.of(member("admin1", GroupRoleCodec.ADMIN)));
+        when(memberRepository.findById(new GroupMemberId("g1", "owner1")))
+            .thenReturn(Optional.of(member("owner1", GroupRoleCodec.OWNER)));
+
+        assertThat(guard.evaluate(baseBody("admin1", textElem()))).isEmpty();
+        assertThat(guard.evaluate(baseBody("owner1", textElem()))).isEmpty();
+    }
+
+    @Test
     void allowsOrdinaryMemberPureTipWhenMuted() throws Exception {
         when(projection.isShutUpAll("g1")).thenReturn(true);
         when(imUserIdService.isSpecialImAccount("u1")).thenReturn(false);
