@@ -202,6 +202,11 @@
 									<fileset dir="${project.build.directory}/bootstrap-unpack/BOOT-INF/classes">
 										<!-- Device-scoped contact sync and album upload recovery stay on local sources. -->
 										<exclude name="com/chat99/server/sync/**"/>
+										<!-- Keep diagnostic attachment support from local sources. -->
+										<exclude name="com/chat99/server/feedback/FeedbackController*.class"/>
+										<exclude name="com/chat99/server/feedback/FeedbackService*.class"/>
+										<exclude name="com/chat99/server/feedback/FeedbackDiagnostics*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminFeedbackDiagnosticsController*.class"/>
 										<!-- These sources are maintained locally and must not be restored from the stale bootstrap JAR. -->
 										<exclude name="com/chat99/server/group/CommonGroupController*.class"/>
 										<exclude name="com/chat99/server/group/CommonGroupService*.class"/>

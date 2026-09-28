@@ -32,7 +32,12 @@ public class FeedbackController {
                                                @RequestParam(value = "clientVersion", required = false)
                                                String clientVersion,
                                                @RequestPart(value = "screenshots", required = false)
-                                               List<MultipartFile> screenshots) throws IOException {
+                                               List<MultipartFile> screenshots,
+                                               @RequestPart(value = "diagnostics", required = false) MultipartFile diagnostics,
+                                               @RequestParam(value = "diagnosticsConsent", defaultValue = "false") boolean diagnosticsConsent) throws IOException {
+        if (auth == null || !auth.isAuthenticated() || auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED);
+        }
         FeedbackType feedbackType;
         try {
             feedbackType = FeedbackType.fromApiCode(type);
@@ -41,6 +46,6 @@ public class FeedbackController {
                 org.springframework.http.HttpStatus.BAD_REQUEST, "INVALID_FEEDBACK_TYPE");
         }
         String userId = (String) auth.getPrincipal();
-        return feedbackService.submit(userId, feedbackType, content, clientVersion, screenshots);
+        return feedbackService.submit(userId, feedbackType, content, clientVersion, screenshots, diagnostics, diagnosticsConsent);
     }
 }

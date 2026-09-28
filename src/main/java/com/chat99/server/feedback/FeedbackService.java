@@ -23,24 +23,28 @@ public class FeedbackService {
     private static final Logger log = LoggerFactory.getLogger(FeedbackService.class);
 
     private final UserFeedbackRepository repository;
+    private final FeedbackDiagnosticsRepository diagnosticsRepository;
     private final GroupAvatarService avatarService;
     private final PlatformProperties platformProps;
     private final ObjectMapper json = new ObjectMapper();
 
     public FeedbackService(UserFeedbackRepository repository,
                            GroupAvatarService avatarService,
-                           PlatformProperties platformProps) {
+                           PlatformProperties platformProps,
+                           FeedbackDiagnosticsRepository diagnosticsRepository) {
         this.repository = repository;
         this.avatarService = avatarService;
         this.platformProps = platformProps;
+        this.diagnosticsRepository = diagnosticsRepository;
     }
 
     public record SubmitResult(long id, String type, String content, List<String> screenshotUrls,
-                               String clientVersion, Instant createdAt) {}
+                               String clientVersion, Instant createdAt, boolean diagnosticsAttached) {}
 
-    @Transactional
+    @Transactional(rollbackFor = IOException.class)
     public SubmitResult submit(String userId, FeedbackType type, String content, String clientVersion,
-                               List<MultipartFile> screenshots) throws IOException {
+                               List<MultipartFile> screenshots, MultipartFile diagnostics, boolean diagnosticsConsent) throws IOException {
+        byte[] report = FeedbackDiagnosticsUpload.read(diagnostics, diagnosticsConsent);
         if (content == null || content.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_INPUT");
         }
@@ -71,6 +75,12 @@ public class FeedbackService {
         fb.setScreenshotUrlsJson(toJson(urls));
         fb.setClientVersion(normalizeClientVersion(clientVersion));
         repository.save(fb);
+        if (report != null) {
+            FeedbackDiagnostics attachment = new FeedbackDiagnostics();
+            attachment.setFeedbackId(fb.getId());
+            attachment.setReport(report);
+            diagnosticsRepository.save(attachment);
+        }
 
         log.info("feedback submitted id={} userId={} type={} clientVersion={} screenshots={}",
             fb.getId(), userId, type, fb.getClientVersion(), urls.size());
@@ -81,7 +91,7 @@ public class FeedbackService {
             trimmed,
             urls,
             fb.getClientVersion(),
-            fb.getCreatedAt());
+            fb.getCreatedAt(), report != null);
     }
 
     private static String normalizeClientVersion(String clientVersion) {
