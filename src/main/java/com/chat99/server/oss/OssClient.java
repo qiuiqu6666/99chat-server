@@ -72,6 +72,28 @@ public class OssClient {
 
     public static final String PART_PUT_CONTENT_TYPE = "application/octet-stream";
 
+    /** 签名 GET，可把 Content-Disposition 改成 inline，供浏览器内播放。 */
+    public String presignGet(String objectKey, int expireSeconds, String contentType, String contentDisposition) {
+        OSS oss = getOrInit();
+        if (oss == null) {
+            throw new IllegalStateException("OSS not configured");
+        }
+        Date expiry = new Date(System.currentTimeMillis() + expireSeconds * 1000L);
+        GeneratePresignedUrlRequest req = new GeneratePresignedUrlRequest(currentBucket, objectKey, HttpMethod.GET);
+        req.setExpiration(expiry);
+        if (contentType != null && !contentType.isBlank()) {
+            req.addQueryParameter("response-content-type", contentType);
+        }
+        if (contentDisposition != null && !contentDisposition.isBlank()) {
+            req.addQueryParameter("response-content-disposition", contentDisposition);
+        }
+        String url = oss.generatePresignedUrl(req).toString();
+        if (url.startsWith("http://")) {
+            return "https://" + url.substring("http://".length());
+        }
+        return url;
+    }
+
     public String presignedPutUrl(String objectKey, String contentType, int expireSeconds) {
         OSS oss = getOrInit();
         if (oss == null) {

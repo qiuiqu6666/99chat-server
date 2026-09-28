@@ -1,5 +1,6 @@
 package com.chat99.server.adminapi;
 
+import com.chat99.server.im.ImAdminClient;
 import com.chat99.server.user.User;
 import com.chat99.server.user.UserRepository;
 import com.chat99.server.wallet.WalletSweepLog;
@@ -36,11 +37,14 @@ public class AdminWalletSweepLogService {
 
     private final WalletSweepLogRepository sweepLogRepository;
     private final UserRepository userRepository;
+    private final ImAdminClient imAdminClient;
 
     public AdminWalletSweepLogService(WalletSweepLogRepository sweepLogRepository,
-                                      UserRepository userRepository) {
+                                      UserRepository userRepository,
+                                      ImAdminClient imAdminClient) {
         this.sweepLogRepository = sweepLogRepository;
         this.userRepository = userRepository;
+        this.imAdminClient = imAdminClient;
     }
 
     public SweepLogListResponse list(Authentication auth,
@@ -65,10 +69,10 @@ public class AdminWalletSweepLogService {
 
         Set<String> userIds = new HashSet<>();
         result.getContent().forEach(row -> userIds.add(row.getUserId()));
-        Map<String, String> nicknames = loadNicknames(userIds);
+        Map<String, UserCard> users = loadUsers(userIds);
 
         List<SweepLogItem> items = result.getContent().stream()
-            .map(row -> toItem(row, nicknames))
+            .map(row -> toItem(row, users))
             .toList();
 
         return new SweepLogListResponse(
@@ -79,11 +83,13 @@ public class AdminWalletSweepLogService {
             result.hasNext());
     }
 
-    private SweepLogItem toItem(WalletSweepLog row, Map<String, String> nicknames) {
+    private SweepLogItem toItem(WalletSweepLog row, Map<String, UserCard> users) {
+        UserCard card = users.get(row.getUserId());
         return new SweepLogItem(
             row.getId(),
             row.getUserId(),
-            nicknames.getOrDefault(row.getUserId(), "—"),
+            card == null || card.nickname() == null || card.nickname().isBlank() ? "—" : card.nickname(),
+            card == null ? null : card.avatar(),
             row.getFromAddress(),
             row.getHotWalletAddress(),
             AdminUserFormats.decimalFromMicro(row.getUsdtSweptMicro()),
@@ -135,14 +141,33 @@ public class AdminWalletSweepLogService {
         };
     }
 
-    private Map<String, String> loadNicknames(Set<String> userIds) {
-        if (userIds.isEmpty()) {
+    private Map<String, UserCard> loadUsers(Set<String> userIds) {
+        Set<String> ids = new HashSet<>();
+        for (String id : userIds) {
+            if (id != null && !id.isBlank()) {
+                ids.add(id);
+            }
+        }
+        if (ids.isEmpty()) {
             return Map.of();
         }
-        Map<String, String> map = new HashMap<>();
-        userRepository.findByUserIdIn(userIds).forEach(u -> map.put(u.getUserId(), u.getNickname()));
+        Map<String, String> imAvatars = imAdminClient.getPortraitImageUrls(ids);
+        Map<String, UserCard> map = new HashMap<>();
+        userRepository.findByUserIdIn(ids).forEach(u -> map.put(u.getUserId(), new UserCard(
+            u.getNickname(),
+            publicAvatar(imAvatars.get(u.getUserId()), u.getAvatarUrl()))));
         return map;
     }
+
+    private static String publicAvatar(String imFaceUrl, String dbAvatarUrl) {
+        String resolved = AdminUserFormats.resolveListAvatar(imFaceUrl, dbAvatarUrl);
+        if (resolved != null && (resolved.startsWith("http://") || resolved.startsWith("https://"))) {
+            return resolved;
+        }
+        return null;
+    }
+
+    private record UserCard(String nickname, String avatar) {}
 
     private static WalletSweepStatus parseStatus(String raw) {
         if (raw == null || raw.isBlank()) {
@@ -208,6 +233,7 @@ public class AdminWalletSweepLogService {
         long id,
         String userUid,
         String nickname,
+        String userAvatarFileName,
         String fromAddress,
         String hotWalletAddress,
         String usdtSwept,

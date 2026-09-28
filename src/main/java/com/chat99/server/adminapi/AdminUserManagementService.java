@@ -17,6 +17,7 @@ import com.chat99.server.user.UserDevice;
 import com.chat99.server.user.UserDeviceRepository;
 import com.chat99.server.user.UserLocationLatest;
 import com.chat99.server.user.UserLocationLatestRepository;
+import com.chat99.server.security.UserAuthStatusService;
 import com.chat99.server.security.UserSessionService;
 import com.chat99.server.user.UserDeviceService;
 import com.chat99.server.user.UserFriend;
@@ -82,6 +83,7 @@ public class AdminUserManagementService {
     private final UserLocationLatestRepository locationLatestRepository;
     private final UserFriendRepository userFriendRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final UserAuthStatusService userAuthStatusService;
 
     @Lazy
     @Autowired
@@ -109,7 +111,8 @@ public class AdminUserManagementService {
                                       GamePrivilegeService gamePrivilegeService,
                                       UserLocationLatestRepository locationLatestRepository,
                                       UserFriendRepository userFriendRepository,
-                                      GroupMemberRepository groupMemberRepository) {
+                                      GroupMemberRepository groupMemberRepository,
+                                      UserAuthStatusService userAuthStatusService) {
         this.userRepository = userRepository;
         this.loginLogRepository = loginLogRepository;
         this.walletRepository = walletRepository;
@@ -133,6 +136,7 @@ public class AdminUserManagementService {
         this.locationLatestRepository = locationLatestRepository;
         this.userFriendRepository = userFriendRepository;
         this.groupMemberRepository = groupMemberRepository;
+        this.userAuthStatusService = userAuthStatusService;
     }
 
     public UserListResponse listUsers(int page, int pageSize, String keyword, String status,
@@ -194,6 +198,7 @@ public class AdminUserManagementService {
             user.setBypassDeviceCheck(true);
         }
         userRepository.save(user);
+        userAuthStatusService.invalidate(user.getUserId());
         boolean cleared = false;
         if (disabled) {
             if (clearHttpToken) {

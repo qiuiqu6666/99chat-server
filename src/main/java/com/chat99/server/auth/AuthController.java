@@ -167,7 +167,7 @@ public class AuthController {
     public record TokenResponse(String token, long expiresIn, String userId, String nextStep,
                                 WalletRegisterInfo wallet) {}
 
-    public record ChallengeResponse(String nextStep, String challengeId, String phoneMasked, String phone) {}
+    public record ChallengeResponse(String nextStep, String challengeId, String phoneMasked, String phone, String message) {}
 
     public record MeResponse(String userId, String phone, String phoneMasked, String nickname,
                              String avatarUrl, Integer avatarVersion, Instant lastNicknameChangedAt,
@@ -333,7 +333,7 @@ public class AuthController {
         String boundPhone = u.getPhone();
         String challengeId = codeStore.createDeviceChallenge(boundPhone, u.getUserId(), req.deviceId());
         loginLogService.record(http, u.getUserId(), req.account(), "PASSWORD", req.deviceId(), false, "NEED_SMS");
-        return new ChallengeResponse("NEED_SMS", challengeId, phoneUtils.mask(boundPhone), boundPhone);
+        return new ChallengeResponse("NEED_SMS", challengeId, phoneUtils.mask(boundPhone), boundPhone, "需要短信验证");
     }
 
     @PostMapping("/auth/login/password/verify")

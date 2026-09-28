@@ -13,5 +13,7 @@ public record RedPacketClaimRecord(
     Instant createdAt,
     boolean bestLuck,
     String nickName,
-    String avatarUrl) {
+    String avatarUrl,
+    /** CREDITED 已入账；PROCESSING 只在 Redis 抢到，余额尚未变化。 */
+    String settleStatus) {
 }

@@ -9,6 +9,10 @@ import com.chat99.server.wallet.PayPinService;
 import com.chat99.server.wallet.WalletCurrency;
 import com.chat99.server.wallet.WalletLedgerService;
 import com.chat99.server.wallet.WalletLedgerType;
+import java.nio.ByteBuffer;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -49,9 +53,16 @@ public class GroupCreateService {
     private final GroupAvatarDefaults avatarDefaults;
     private final GroupCreateLimitConfigService createConfig;
     private final CommunityCreatePaymentRepository paymentRepository;
+    private final GroupProfileRepository profileRepository;
     private final PayPinService payPinService;
     private final WalletLedgerService walletLedgerService;
     private final TransactionTemplate transactionTemplate;
+    private final SecureRandom rng = new SecureRandom();
+
+    private static final char[] GROUP_ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
+    private static final char[] GROUP_ID_LETTERS = "abcdefghijklmnopqrstuvwxyz".toCharArray();
+    private static final char[] GROUP_ID_DIGITS = "0123456789".toCharArray();
+    static final int GROUP_ID_LENGTH = 10;
 
     public GroupCreateService(ImAdminClient im,
                               ImUserIdService imUserIdService,
@@ -65,6 +76,7 @@ public class GroupCreateService {
                               GroupAvatarDefaults avatarDefaults,
                               GroupCreateLimitConfigService createConfig,
                               CommunityCreatePaymentRepository paymentRepository,
+                              GroupProfileRepository profileRepository,
                               PayPinService payPinService,
                               WalletLedgerService walletLedgerService,
                               PlatformTransactionManager transactionManager) {
@@ -80,6 +92,7 @@ public class GroupCreateService {
         this.avatarDefaults = avatarDefaults;
         this.createConfig = createConfig;
         this.paymentRepository = paymentRepository;
+        this.profileRepository = profileRepository;
         this.payPinService = payPinService;
         this.walletLedgerService = walletLedgerService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
@@ -97,12 +110,12 @@ public class GroupCreateService {
             if (req.payPin() == null || req.payPin().isBlank()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PAY_PIN_REQUIRED");
             }
-            CommunityCreatePayment previous = paymentRepository.findById(requestedGroupId).orElse(null);
+            CommunityCreatePayment previous = findExistingPayment(req.clientRequestId());
             if (previous != null) {
                 if (!creatorUserId.equals(previous.getOwnerUserId())) {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "GROUP_CREATE_REQUEST_CONFLICT");
                 }
-                return profileService.getDetailFresh(requestedGroupId, creatorUserId);
+                return profileService.getDetailFresh(previous.getGroupId(), creatorUserId);
             }
             payPinService.requireSetAndVerify(creatorUserId, req.payPin());
         }
@@ -128,13 +141,14 @@ public class GroupCreateService {
     /** IM 建群 + 本地投影/设置写入与扣费。响应组装在事务提交后读取。 */
     private String createGroupPersist(String creatorUserId, CreateGroupRequest req,
                                       String requestedGroupId, AtomicReference<String> createdInIm) {
-        if (requestedGroupId != null) {
-            CommunityCreatePayment previous = paymentRepository.findById(requestedGroupId).orElse(null);
+        boolean paidCommunity = GroupCreateLimitConfigService.isCommunity(req.groupType()) && !req.channel();
+        if (paidCommunity) {
+            CommunityCreatePayment previous = findExistingPayment(req.clientRequestId());
             if (previous != null) {
                 if (!creatorUserId.equals(previous.getOwnerUserId())) {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "GROUP_CREATE_REQUEST_CONFLICT");
                 }
-                return requestedGroupId;
+                return previous.getGroupId();
             }
         }
         String groupType = req.groupType().trim();
@@ -153,10 +167,13 @@ public class GroupCreateService {
             ? GroupJoinOption.need_permission
             : req.joinOptions().inviteJoinOption();
 
+        if (requestedGroupId == null) {
+            requestedGroupId = allocateGroupId(groupType);
+        }
         String avatarUrl = avatarDefaults.resolve(req.avatarUrl());
         WalletCurrency priceCurrency = null;
         long priceMinor = 0;
-        if (requestedGroupId != null) {
+        if (paidCommunity) {
             priceCurrency = createConfig.getCommunityPriceCurrency();
             priceMinor = createConfig.getCommunityPriceMinor();
             if (!priceCurrency.getApiCode().equals(req.expectedPriceCurrency())
@@ -206,7 +223,7 @@ public class GroupCreateService {
         }
         saveJoinOptions(groupId, apply, invite);
         ownedGroupService.recordCreated(creatorUserId, groupType, groupId);
-        if (requestedGroupId != null) {
+        if (paidCommunity) {
             CommunityCreatePayment payment = new CommunityCreatePayment();
             payment.setGroupId(groupId);
             payment.setOwnerUserId(creatorUserId);
@@ -218,7 +235,107 @@ public class GroupCreateService {
         return groupId;
     }
 
+    /**
+     * 收费社群群号：{@code @TGS#_} 加 10 位英文和数字，且不能是纯数字。
+     * 同一个客户端 UUID 始终得到同一个号。界面别名是这 10 位前面加 {@code @}。
+     */
     static String paidGroupId(String clientRequestId) {
+        return "@TGS#_" + mixedToken(requireClientRequestUuid(clientRequestId));
+    }
+
+    /** 短暂上线过的 10 位纯数字群号。旧请求重试时用来找回已扣费的群。 */
+    static String digitPaidGroupId(String clientRequestId) {
+        UUID id = requireClientRequestUuid(clientRequestId);
+        long mixed = id.getMostSignificantBits() ^ Long.rotateLeft(id.getLeastSignificantBits(), 17);
+        long suffix = 1_000_000_000L + Math.floorMod(mixed & Long.MAX_VALUE, 9_000_000_000L);
+        return "@TGS#_" + suffix;
+    }
+
+    /** 改成 10 位尾数之前的群号。旧请求重试时用它找回已扣费的群。 */
+    static String legacyPaidGroupId(String clientRequestId) {
+        UUID id = requireClientRequestUuid(clientRequestId);
+        return "@TGS#_P" + id.toString().replace("-", "");
+    }
+
+    private CommunityCreatePayment findExistingPayment(String clientRequestId) {
+        return paymentRepository.findById(paidGroupId(clientRequestId))
+            .or(() -> paymentRepository.findById(digitPaidGroupId(clientRequestId)))
+            .or(() -> paymentRepository.findById(legacyPaidGroupId(clientRequestId)))
+            .orElse(null);
+    }
+
+    private String allocateGroupId(String groupType) {
+        boolean community = GroupCreateLimitConfigService.isCommunity(groupType);
+        for (int i = 0; i < 8; i++) {
+            String token = randomMixedToken(rng);
+            String groupId = community ? "@TGS#_" + token : token;
+            if (!profileRepository.existsById(groupId) && !paymentRepository.existsById(groupId)) {
+                return groupId;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "GROUP_ID_EXHAUSTED");
+    }
+
+    static String mixedToken(UUID id) {
+        byte[] raw = new byte[16];
+        ByteBuffer.wrap(raw).putLong(id.getMostSignificantBits()).putLong(id.getLeastSignificantBits());
+        byte[] hash;
+        try {
+            hash = MessageDigest.getInstance("SHA-256").digest(raw);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+        return tokenFromHash(hash);
+    }
+
+    static String randomMixedToken(SecureRandom random) {
+        byte[] hash = new byte[16];
+        random.nextBytes(hash);
+        return tokenFromHash(hash);
+    }
+
+    private static String tokenFromHash(byte[] hash) {
+        char[] out = new char[GROUP_ID_LENGTH];
+        boolean hasLetter = false;
+        boolean hasDigit = false;
+        for (int i = 0; i < GROUP_ID_LENGTH; i++) {
+            char c = GROUP_ID_ALPHABET[(hash[i] & 0xff) % GROUP_ID_ALPHABET.length];
+            out[i] = c;
+            if (c >= 'a') {
+                hasLetter = true;
+            } else {
+                hasDigit = true;
+            }
+        }
+        if (!hasLetter) {
+            out[0] = GROUP_ID_LETTERS[(hash[10] & 0xff) % GROUP_ID_LETTERS.length];
+        }
+        if (!hasDigit) {
+            out[GROUP_ID_LENGTH - 1] = GROUP_ID_DIGITS[(hash[11] & 0xff) % GROUP_ID_DIGITS.length];
+        }
+        return new String(out);
+    }
+
+    static boolean isMixedGroupToken(String token) {
+        if (token == null || token.length() != GROUP_ID_LENGTH) {
+            return false;
+        }
+        boolean hasLetter = false;
+        boolean hasDigit = false;
+        for (int i = 0; i < token.length(); i++) {
+            char c = token.charAt(i);
+            if (c >= 'a' && c <= 'z') {
+                hasLetter = true;
+            } else if (c >= '0' && c <= '9') {
+                hasDigit = true;
+            } else {
+                return false;
+            }
+        }
+        return hasLetter && hasDigit;
+    }
+
+    private static UUID requireClientRequestUuid(String clientRequestId) {
         if (clientRequestId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "GROUP_CREATE_REQUEST_ID_REQUIRED");
         }
@@ -227,7 +344,7 @@ public class GroupCreateService {
             if (!id.toString().equalsIgnoreCase(clientRequestId.trim())) {
                 throw new IllegalArgumentException("noncanonical UUID");
             }
-            return "@TGS#_P" + id.toString().replace("-", "");
+            return id;
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "GROUP_CREATE_REQUEST_ID_INVALID");
         }

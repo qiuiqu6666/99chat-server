@@ -238,7 +238,8 @@ public class IntegrationReportImageController {
             }
             String lower = name.toLowerCase();
             if (!lower.endsWith(".jpg") && !lower.endsWith(".jpeg")
-                && !lower.endsWith(".png") && !lower.endsWith(".webp")) {
+                && !lower.endsWith(".png") && !lower.endsWith(".webp")
+                && !lower.endsWith(".xlsx")) {
                 name = name + ".jpg";
             }
             return name;

@@ -39,6 +39,9 @@ public class AdminUserGenerationItem {
     @Column(name = "nickname", nullable = false, length = 100)
     private String nickname;
 
+    @Column(name = "password_ciphertext", length = 1000)
+    private String passwordCiphertext;
+
     @Column(name = "status", nullable = false, length = 20)
     private String status = "pending";
 

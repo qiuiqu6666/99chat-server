@@ -1,5 +1,6 @@
 package com.chat99.server.adminapi;
 
+import com.chat99.server.im.ImAdminClient;
 import com.chat99.server.user.User;
 import com.chat99.server.user.UserRepository;
 import com.chat99.server.wallet.TronGridClient;
@@ -42,6 +43,7 @@ public class AdminWalletTreasuryService {
     private final WalletSweepService sweepService;
     private final WalletSweepLogService sweepLogService;
     private final AdminAuditService auditService;
+    private final ImAdminClient imAdminClient;
 
     public AdminWalletTreasuryService(UserWalletRepository walletRepository,
                                       UserRepository userRepository,
@@ -49,7 +51,8 @@ public class AdminWalletTreasuryService {
                                       WalletChainBalanceService chainBalanceService,
                                       WalletSweepService sweepService,
                                       WalletSweepLogService sweepLogService,
-                                      AdminAuditService auditService) {
+                                      AdminAuditService auditService,
+                                      ImAdminClient imAdminClient) {
         this.walletRepository = walletRepository;
         this.userRepository = userRepository;
         this.tronGrid = tronGrid;
@@ -57,6 +60,7 @@ public class AdminWalletTreasuryService {
         this.sweepService = sweepService;
         this.sweepLogService = sweepLogService;
         this.auditService = auditService;
+        this.imAdminClient = imAdminClient;
     }
 
     public TreasurySummaryResponse summary(Authentication auth) {
@@ -93,14 +97,14 @@ public class AdminWalletTreasuryService {
 
         Set<String> userIds = new HashSet<>();
         result.getContent().forEach(w -> userIds.add(w.getUserId()));
-        Map<String, String> nicknames = loadNicknames(userIds);
+        Map<String, UserCard> users = loadUsers(userIds);
 
         List<TreasuryWalletItem> items = new ArrayList<>();
         for (UserWallet w : result.getContent()) {
             if (refreshChain) {
                 chainBalanceService.refreshAndSave(w);
             }
-            items.add(toItem(w, nicknames));
+            items.add(toItem(w, users));
         }
 
         return new TreasuryListResponse(
@@ -198,11 +202,13 @@ public class AdminWalletTreasuryService {
             null);
     }
 
-    private TreasuryWalletItem toItem(UserWallet w, Map<String, String> nicknames) {
+    private TreasuryWalletItem toItem(UserWallet w, Map<String, UserCard> users) {
         boolean chainLoaded = chainBalanceService.hasCachedChainBalance(w);
+        UserCard card = users.get(w.getUserId());
         return new TreasuryWalletItem(
             w.getUserId(),
-            nicknames.getOrDefault(w.getUserId(), "—"),
+            card == null || card.nickname() == null || card.nickname().isBlank() ? "—" : card.nickname(),
+            card == null ? null : card.avatar(),
             w.getTronAddress(),
             AdminUserFormats.decimalFromMicro(w.getBalanceUsdtMicro()),
             AdminUserFormats.decimalFromTrxSun(w.getBalanceTrxSun()),
@@ -230,14 +236,33 @@ public class AdminWalletTreasuryService {
         };
     }
 
-    private Map<String, String> loadNicknames(Set<String> userIds) {
-        if (userIds.isEmpty()) {
+    private Map<String, UserCard> loadUsers(Set<String> userIds) {
+        Set<String> ids = new HashSet<>();
+        for (String id : userIds) {
+            if (id != null && !id.isBlank()) {
+                ids.add(id);
+            }
+        }
+        if (ids.isEmpty()) {
             return Map.of();
         }
-        Map<String, String> map = new HashMap<>();
-        userRepository.findByUserIdIn(userIds).forEach(u -> map.put(u.getUserId(), u.getNickname()));
+        Map<String, String> imAvatars = imAdminClient.getPortraitImageUrls(ids);
+        Map<String, UserCard> map = new HashMap<>();
+        userRepository.findByUserIdIn(ids).forEach(u -> map.put(u.getUserId(), new UserCard(
+            u.getNickname(),
+            publicAvatar(imAvatars.get(u.getUserId()), u.getAvatarUrl()))));
         return map;
     }
+
+    private static String publicAvatar(String imFaceUrl, String dbAvatarUrl) {
+        String resolved = AdminUserFormats.resolveListAvatar(imFaceUrl, dbAvatarUrl);
+        if (resolved != null && (resolved.startsWith("http://") || resolved.startsWith("https://"))) {
+            return resolved;
+        }
+        return null;
+    }
+
+    private record UserCard(String nickname, String avatar) {}
 
     private static String blankToNull(String s) {
         if (s == null || s.isBlank()) {
@@ -270,6 +295,7 @@ public class AdminWalletTreasuryService {
     public record TreasuryWalletItem(
         String userUid,
         String nickname,
+        String userAvatarFileName,
         String tronAddress,
         String platformUsdt,
         String platformTrx,

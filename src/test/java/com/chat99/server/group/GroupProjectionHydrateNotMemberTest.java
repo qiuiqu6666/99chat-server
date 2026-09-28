@@ -39,7 +39,7 @@ class GroupProjectionHydrateNotMemberTest {
     void setUp() {
         projection = new GroupProjectionService(
             profileRepository, memberRepository, changeEventRepository, im, avatarDefaults,
-            restQueue, ownedGroupService, meGroupsListCache);
+            restQueue, ownedGroupService, meGroupsListCache, null);
         lenient().when(meGroupsListCache.getIfAvailable()).thenReturn(null);
         lenient().when(changeEventRepository.findRecentByGroupAndAction(any(), any(), any(Long.class), any()))
             .thenReturn(List.of());

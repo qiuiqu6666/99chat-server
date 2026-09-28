@@ -10,6 +10,7 @@ import io.netty.util.concurrent.ScheduledFuture;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
@@ -25,6 +26,7 @@ class RealtimeTcpHandler extends SimpleChannelInboundHandler<String> {
     private final ObjectMapper json;
     private final PresenceService presenceService;
     private final Executor queryExecutor;
+    private final Executor presenceTouchExecutor;
 
     private String userId;
     private String deviceId;
@@ -36,13 +38,15 @@ class RealtimeTcpHandler extends SimpleChannelInboundHandler<String> {
                        RealtimeProperties props,
                        ObjectMapper json,
                        PresenceService presenceService,
-                       Executor queryExecutor) {
+                       Executor queryExecutor,
+                       Executor presenceTouchExecutor) {
         this.authService = authService;
         this.sessions = sessions;
         this.props = props;
         this.json = json;
         this.presenceService = presenceService;
         this.queryExecutor = queryExecutor;
+        this.presenceTouchExecutor = presenceTouchExecutor;
     }
 
     @Override
@@ -82,11 +86,11 @@ class RealtimeTcpHandler extends SimpleChannelInboundHandler<String> {
         if (pingDeviceId != null) {
             deviceId = pingDeviceId;
         }
-        touchPresence();
         Map<String, Object> pong = new LinkedHashMap<>();
         pong.put("type", "pong");
         pong.put("ts", System.currentTimeMillis());
         writeLine(ctx, pong);
+        submitPresenceTouch();
     }
 
     private void handlePresenceLastSeen(ChannelHandlerContext ctx, Map<String, Object> body) {
@@ -135,6 +139,14 @@ class RealtimeTcpHandler extends SimpleChannelInboundHandler<String> {
         });
     }
 
+    private void submitPresenceTouch() {
+        try {
+            presenceTouchExecutor.execute(this::touchPresence);
+        } catch (RejectedExecutionException e) {
+            log.debug("presence touch dropped userId={}", userId);
+        }
+    }
+
     private void touchPresence() {
         if (userId == null) {
             return;
@@ -159,7 +171,7 @@ class RealtimeTcpHandler extends SimpleChannelInboundHandler<String> {
         this.deviceId = stringVal(body.get("deviceId"));
         cancelAuthTimeout();
         sessions.register(userId, ctx.channel());
-        touchPresence();
+        submitPresenceTouch();
         writeLine(ctx, Map.of("type", "auth_ok"));
         log.info("realtime tcp authenticated userId={} channel={}", userId, ctx.channel().id());
     }

@@ -1115,7 +1115,8 @@ public class ImAdminClient {
 
     public record RoamMessage(
         String fromAccount, String toAccount, String msgType, String textPreview,
-        long msgTimeSec, String msgKey, String msgId, Long msgSeq) {}
+        long msgTimeSec, String msgKey, String msgId, Long msgSeq,
+        String mediaUrl, String thumbUrl, String fileName, String mediaKind) {}
 
     public record GroupAdminInfo(
         String groupId,
@@ -2456,8 +2457,9 @@ public class ImAdminClient {
             long ts = numLong(m.get("MsgTimeStamp"));
             String key = str(m.get("MsgKey"));
             String msgId = str(m.get("MsgId"));
-            String[] preview = extractMsgPreview(m.get("MsgBody"));
-            out.add(new RoamMessage(from, to, preview[0], preview[1], ts, key, msgId, null));
+            MsgPreview preview = extractMsgPreview(m.get("MsgBody"));
+            out.add(new RoamMessage(from, to, preview.type(), preview.text(), ts, key, msgId, null,
+                preview.mediaUrl(), preview.thumbUrl(), preview.fileName(), preview.mediaKind()));
         }
         return out;
     }
@@ -2481,8 +2483,9 @@ public class ImAdminClient {
             String key = str(m.get("MsgKey"));
             String msgId = str(m.get("MsgId"));
             Long msgSeq = parseMsgSeq(m.get("MsgSeq"));
-            String[] preview = extractMsgPreview(m.get("MsgBody"));
-            out.add(new RoamMessage(from, groupId, preview[0], preview[1], ts, key, msgId, msgSeq));
+            MsgPreview preview = extractMsgPreview(m.get("MsgBody"));
+            out.add(new RoamMessage(from, groupId, preview.type(), preview.text(), ts, key, msgId, msgSeq,
+                preview.mediaUrl(), preview.thumbUrl(), preview.fileName(), preview.mediaKind()));
         }
         return out;
     }
@@ -2503,29 +2506,168 @@ public class ImAdminClient {
         return null;
     }
 
-    private static String[] extractMsgPreview(Object msgBody) {
+    private record MsgPreview(String type, String text, String mediaUrl, String thumbUrl, String fileName, String mediaKind) {}
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper PREVIEW_JSON =
+        new com.fasterxml.jackson.databind.ObjectMapper();
+
+    private static MsgPreview extractMsgPreview(Object msgBody) {
         if (!(msgBody instanceof List<?> arr) || arr.isEmpty()) {
-            return new String[] {"UNKNOWN", ""};
+            return new MsgPreview("UNKNOWN", "", null, null, null, null);
         }
         Object first = arr.get(0);
         if (!(first instanceof Map<?, ?> m)) {
-            return new String[] {"UNKNOWN", ""};
+            return new MsgPreview("UNKNOWN", "", null, null, null, null);
         }
         String type = str(m.get("MsgType"));
+        if (type == null) {
+            type = "UNKNOWN";
+        }
         Object content = m.get("MsgContent");
-        String text = "";
-        if (content instanceof Map<?, ?> cm) {
-            Object t = cm.get("Text");
-            if (t != null) {
-                text = t.toString();
+        if (!(content instanceof Map<?, ?> cm)) {
+            String text = content == null ? "" : clip(content.toString(), 500);
+            return new MsgPreview(type, text, null, null, null, null);
+        }
+        return switch (type) {
+            case "TIMTextElem" -> new MsgPreview(type, clip(str(cm.get("Text")), 2000), null, null, null, "text");
+            case "TIMImageElem" -> new MsgPreview(type, "[图片]", imageUrl(cm, 1), imageUrl(cm, 3), null, "image");
+            case "TIMSoundElem" -> new MsgPreview(type, "[语音]", str(cm.get("Url")), null, null, "audio");
+            case "TIMVideoFileElem" -> new MsgPreview(type, "[视频]", str(cm.get("VideoUrl")), str(cm.get("ThumbUrl")), null, "video");
+            case "TIMFileElem" -> new MsgPreview(type, fileLabel(str(cm.get("FileName"))), str(cm.get("Url")), null, str(cm.get("FileName")), "file");
+            case "TIMFaceElem" -> new MsgPreview(type, "[表情]", null, null, null, "text");
+            case "TIMLocationElem" -> new MsgPreview(type, locationText(cm), null, null, null, "text");
+            case "TIMRelayElem" -> new MsgPreview(type, relayText(cm), null, null, null, "text");
+            case "TIMCustomElem" -> customPreview(type, cm);
+            default -> new MsgPreview(type, clip(firstNonBlank(str(cm.get("Text")), str(cm.get("Desc"))), 500), null, null, null, "text");
+        };
+    }
+
+    private static MsgPreview customPreview(String type, Map<?, ?> content) {
+        String desc = str(content.get("Desc"));
+        Map<String, Object> data = parsePreviewJson(str(content.get("Data")));
+        if (data == null) {
+            return new MsgPreview(type, clip(firstNonBlank(desc, str(content.get("Data"))), 500), null, null, null, "text");
+        }
+        String biz = firstNonBlank(str(data.get("type")), str(data.get("businessID")), str(data.get("businessId")));
+        if ("chat.attachment".equals(biz)) {
+            String kind = str(data.get("kind"));
+            String name = str(data.get("name"));
+            String mediaKind = switch (kind == null ? "" : kind) {
+                case "image" -> "image";
+                case "audio" -> "audio";
+                case "video" -> "video";
+                default -> "file";
+            };
+            String label = switch (mediaKind) {
+                case "image" -> "[图片]";
+                case "audio" -> "[语音]";
+                case "video" -> "[视频]";
+                default -> "[文件]";
+            };
+            String text = name == null ? label : label + " " + name;
+            return new MsgPreview(type, text, attachmentRef(str(data.get("attachmentId"))),
+                attachmentRef(str(data.get("thumbnailAttachmentId"))), name, mediaKind);
+        }
+        String media = firstHttp(data, "url", "imageUrl", "fileUrl", "videoUrl", "audioUrl", "originUrl", "coverUrl");
+        String thumb = firstHttp(data, "thumbUrl", "thumbnailUrl", "previewUrl");
+        String text = firstNonBlank(
+            str(data.get("text")), str(data.get("content")), str(data.get("title")),
+            str(data.get("greeting")), str(data.get("previewAbstract")), desc);
+        if (text == null) {
+            text = biz == null ? "[自定义消息]" : "[自定义] " + biz;
+        }
+        String kind = media == null ? "text" : (looksImage(media) ? "image" : "file");
+        return new MsgPreview(type, clip(text, 500), media, thumb, str(data.get("name")), kind);
+    }
+
+    private static String attachmentRef(String id) {
+        return id == null || id.isBlank() ? null : "attachment:" + id.trim();
+    }
+
+    private static String imageUrl(Map<?, ?> content, int preferType) {
+        Object raw = content.get("ImageInfoArray");
+        if (!(raw instanceof List<?> list)) {
+            return str(content.get("URL"));
+        }
+        String fallback = null;
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> info)) {
+                continue;
             }
-        } else if (content != null) {
-            text = content.toString();
+            String url = str(info.get("URL"));
+            if (url == null) {
+                continue;
+            }
+            if (fallback == null) {
+                fallback = url;
+            }
+            Object type = info.get("Type");
+            if (type instanceof Number n && n.intValue() == preferType) {
+                return url;
+            }
         }
-        if (text.length() > 500) {
-            text = text.substring(0, 500);
+        return fallback;
+    }
+
+    private static String fileLabel(String name) {
+        return name == null ? "[文件]" : "[文件] " + name;
+    }
+
+    private static String locationText(Map<?, ?> content) {
+        String desc = str(content.get("Desc"));
+        return desc == null ? "[位置]" : "[位置] " + desc;
+    }
+
+    private static String relayText(Map<?, ?> content) {
+        String title = str(content.get("Title"));
+        return title == null ? "[合并转发]" : "[合并转发] " + title;
+    }
+
+    private static Map<String, Object> parsePreviewJson(String raw) {
+        if (raw == null || raw.isBlank() || !raw.trim().startsWith("{")) {
+            return null;
         }
-        return new String[] {type == null ? "UNKNOWN" : type, text};
+        try {
+            return PREVIEW_JSON.readValue(raw, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static String firstHttp(Map<String, Object> data, String... keys) {
+        for (String key : keys) {
+            String value = str(data.get(key));
+            if (value != null && (value.startsWith("http://") || value.startsWith("https://"))) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static boolean looksImage(String url) {
+        String lower = url.toLowerCase();
+        return lower.contains(".jpg") || lower.contains(".jpeg") || lower.contains(".png")
+            || lower.contains(".gif") || lower.contains(".webp") || lower.contains(".bmp");
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private static String clip(String value, int max) {
+        if (value == null) {
+            return "";
+        }
+        String text = value.trim();
+        return text.length() <= max ? text : text.substring(0, max);
     }
 
     private static boolean imOk(Map<?, ?> raw) {

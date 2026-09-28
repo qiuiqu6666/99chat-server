@@ -87,6 +87,9 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
     @Query("SELECT e.userId FROM GroupMember e WHERE e.groupId = :groupId AND e.deleted = false")
     List<String> findActiveUserIdsByGroupId(@Param("groupId") String groupId);
 
+    @Query("SELECT e.userId FROM GroupMember e WHERE e.groupId = :groupId AND e.deleted = true AND e.userId IN :userIds")
+    List<String> findTombstonedUserIds(@Param("groupId") String groupId, @Param("userIds") Collection<String> userIds);
+
     @Query("SELECT e FROM GroupMember e WHERE e.userId = :userId AND e.groupId IN :groupIds AND e.deleted = false")
     List<GroupMember> findByUserIdAndGroupIdIn(
         @Param("userId") String userId,

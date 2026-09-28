@@ -5,10 +5,13 @@ import com.chat99.server.user.UserRepository;
 import com.chat99.server.wallet.UserWallet;
 import com.chat99.server.wallet.UserWalletRepository;
 import jakarta.servlet.http.HttpServletRequest;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminUserGenerationService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminUserGenerationService.class);
+    private static final SecureRandom PASSWORD_RANDOM = new SecureRandom();
+    private static final String PASSWORD_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final String PASSWORD_DIGITS = "0123456789";
+    private static final String PASSWORD_CHARS = PASSWORD_LETTERS + PASSWORD_DIGITS;
+    private static final int PASSWORD_LENGTH = 8;
 
     private final AdminUserGenerationTaskRepository taskRepository;
     private final AdminUserGenerationItemRepository itemRepository;
@@ -53,14 +61,10 @@ public class AdminUserGenerationService {
 
     @Transactional
     public TaskCreatedResponse createTask(HttpServletRequest http, String adminUsername,
-                                          String password, int count, String sex) {
+                                          int count, String sex) {
         if (count < 1 || count > 100) {
             throw new AdminApiException(HttpStatus.UNPROCESSABLE_ENTITY, "validation_error",
                 "count must be between 1 and 100");
-        }
-        if (password == null || password.length() < 6 || password.length() > 128) {
-            throw new AdminApiException(HttpStatus.UNPROCESSABLE_ENTITY, "validation_error",
-                "password must be 6-128 characters");
         }
 
         String taskNo = "UGT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20);
@@ -70,16 +74,17 @@ public class AdminUserGenerationService {
         task.setCreatedBy(adminUsername);
         task.setRequestedCount(count);
         task.setSex(sex == null || sex.isBlank() ? null : sex.trim());
-        task.setPasswordCiphertext(crypto.encrypt(password));
         task.setExpiresAt(now.plus(properties.retentionDays(), ChronoUnit.DAYS));
         taskRepository.save(task);
 
         String nicknamePrefix = "用户" + taskNo.substring(taskNo.length() - 8);
+        Set<String> usedPasswords = new HashSet<>();
         for (int i = 0; i < count; i++) {
             AdminUserGenerationItem item = new AdminUserGenerationItem();
             item.setTaskId(task.getId());
             item.setItemIndex(i);
             item.setNickname(nicknamePrefix + String.format("%03d", i + 1));
+            item.setPasswordCiphertext(crypto.encrypt(randomPassword(usedPasswords)));
             itemRepository.save(item);
         }
         auditService.log(http, adminUsername, "user.generation_task.create", null,
@@ -131,25 +136,22 @@ public class AdminUserGenerationService {
 
     public void processTask(AdminUserGenerationTask claimed) {
         AdminUserGenerationTask task = requireTask(claimed.getTaskNo());
-        String ciphertext = taskRepository.findPasswordCiphertextById(task.getId());
-        String password;
-        try {
-            if (ciphertext == null || ciphertext.isBlank()) {
-                throw new IllegalStateException("password ciphertext missing");
-            }
-            password = crypto.decrypt(ciphertext);
-        } catch (Exception e) {
-            log.warn("admin user generation decrypt failed task={} cipherLen={} err={}",
-                task.getTaskNo(), ciphertext == null ? -1 : ciphertext.length(), e.toString());
-            failWholeTask(task.getId(), "password_decrypt_failed", false);
-            return;
-        }
+        String taskPassword = decryptTaskPassword(task);
 
         while (true) {
             AdminUserGenerationItem item = claimNextItem(task.getId());
             if (item == null) {
                 finishTask(task.getId());
                 return;
+            }
+            String password;
+            try {
+                password = resolveItemPassword(item, taskPassword);
+            } catch (Exception e) {
+                log.warn("admin user generation item password failed task={} item={} err={}",
+                    task.getTaskNo(), item.getId(), e.toString());
+                markItemFailed(task.getId(), item.getId(), "password_missing", safeMessage(e));
+                continue;
             }
             try {
                 User existing = userRepository.findByNickname(item.getNickname()).orElse(null);
@@ -301,8 +303,64 @@ public class AdminUserGenerationService {
     private GenerationAccountItem toAccountItem(AdminUserGenerationItem item) {
         return new GenerationAccountItem(
             item.getItemIndex(), item.getStatus(), item.getUserUid(), item.getNickname(),
+            decryptItemPassword(item),
             item.getTrxAddress(), item.getDepositAddress(), item.getUsdtContract(),
             item.getMinDepositUsdt(), item.getErrorCode(), item.getErrorMessage());
+    }
+
+    private String decryptTaskPassword(AdminUserGenerationTask task) {
+        String ciphertext = taskRepository.findPasswordCiphertextById(task.getId());
+        if (ciphertext == null || ciphertext.isBlank()) {
+            return null;
+        }
+        try {
+            return crypto.decrypt(ciphertext);
+        } catch (Exception e) {
+            log.warn("admin user generation task password decrypt failed task={} err={}",
+                task.getTaskNo(), e.toString());
+            return null;
+        }
+    }
+
+    private String resolveItemPassword(AdminUserGenerationItem item, String taskPassword) {
+        String password = decryptItemPassword(item);
+        if (password != null && !password.isBlank()) {
+            return password;
+        }
+        if (taskPassword != null && !taskPassword.isBlank()) {
+            return taskPassword;
+        }
+        throw new IllegalStateException("password missing");
+    }
+
+    private String decryptItemPassword(AdminUserGenerationItem item) {
+        String ciphertext = item.getPasswordCiphertext();
+        if (ciphertext == null || ciphertext.isBlank()) {
+            return null;
+        }
+        return crypto.decrypt(ciphertext);
+    }
+
+    private static String randomPassword(Set<String> used) {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            char[] chars = new char[PASSWORD_LENGTH];
+            for (int i = 0; i < chars.length; i++) {
+                chars[i] = PASSWORD_CHARS.charAt(PASSWORD_RANDOM.nextInt(PASSWORD_CHARS.length()));
+            }
+            chars[0] = PASSWORD_LETTERS.charAt(PASSWORD_RANDOM.nextInt(PASSWORD_LETTERS.length()));
+            chars[1] = PASSWORD_DIGITS.charAt(PASSWORD_RANDOM.nextInt(PASSWORD_DIGITS.length()));
+            for (int i = chars.length - 1; i > 0; i--) {
+                int j = PASSWORD_RANDOM.nextInt(i + 1);
+                char current = chars[i];
+                chars[i] = chars[j];
+                chars[j] = current;
+            }
+            String password = new String(chars);
+            if (used.add(password)) {
+                return password;
+            }
+        }
+        throw new IllegalStateException("failed to allocate unique password");
     }
 
     private static AdminUserGenerationStatus parseStatus(String raw) {
@@ -351,6 +409,7 @@ public class AdminUserGenerationService {
         String status,
         String userUid,
         String nickname,
+        String password,
         String trxAddress,
         String depositAddress,
         String usdtContract,

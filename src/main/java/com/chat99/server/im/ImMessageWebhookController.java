@@ -17,10 +17,15 @@ import com.chat99.server.messagearchive.ImMessageArchiveProducer;
 import com.chat99.server.messagearchive.ImMessageRecallService;
 import com.chat99.server.messagearchive.MessageArchiveProperties;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Callable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.context.request.async.WebAsyncTask;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,8 +47,10 @@ public class ImMessageWebhookController {
     private final ImMessageArchiveProducer archiveProducer;
     private final ImMessageRecallService recallService;
     private final ChatAttachmentImBindService attachmentImBindService;
+    private final ImWebhookDispatchProperties webhookDispatchProperties;
+    private final AsyncTaskExecutor webhookExecutor;
 
-    public ImMessageWebhookController(ImCallbackVerifier callbackVerifier, ImDashboardStatsCallbackService dashboardStatsCallbackService, ImChatPushCallbackService chatPushCallbackService, ImC2cBeforeSendMsgCallbackService beforeSendMsgCallbackService, ImGroupBeforeSendMsgCallbackService groupBeforeSendMsgCallbackService, ImGroupBeforeCreateCallbackService beforeCreateGroupCallbackService, ImGroupBeforeJoinCallbackService beforeJoinGroupCallbackService, ImGroupRealtimeCallbackService groupRealtimeCallbackService, ImGroupMessageMonitorService groupMessageMonitorService, MessageArchiveProperties archiveProperties, @Autowired(required=false) ImMessageArchiveProducer archiveProducer, @Autowired(required=false) ImMessageRecallService recallService, ChatAttachmentImBindService attachmentImBindService) {
+    public ImMessageWebhookController(ImCallbackVerifier callbackVerifier, ImDashboardStatsCallbackService dashboardStatsCallbackService, ImChatPushCallbackService chatPushCallbackService, ImC2cBeforeSendMsgCallbackService beforeSendMsgCallbackService, ImGroupBeforeSendMsgCallbackService groupBeforeSendMsgCallbackService, ImGroupBeforeCreateCallbackService beforeCreateGroupCallbackService, ImGroupBeforeJoinCallbackService beforeJoinGroupCallbackService, ImGroupRealtimeCallbackService groupRealtimeCallbackService, ImGroupMessageMonitorService groupMessageMonitorService, MessageArchiveProperties archiveProperties, @Autowired(required=false) ImMessageArchiveProducer archiveProducer, @Autowired(required=false) ImMessageRecallService recallService, ChatAttachmentImBindService attachmentImBindService, ImWebhookDispatchProperties webhookDispatchProperties, @Qualifier(ImWebhookExecutorConfig.BEAN_NAME) AsyncTaskExecutor webhookExecutor) {
         this.callbackVerifier = callbackVerifier;
         this.dashboardStatsCallbackService = dashboardStatsCallbackService;
         this.chatPushCallbackService = chatPushCallbackService;
@@ -57,12 +64,27 @@ public class ImMessageWebhookController {
         this.archiveProducer = archiveProducer;
         this.recallService = recallService;
         this.attachmentImBindService = attachmentImBindService;
+        this.webhookDispatchProperties = webhookDispatchProperties;
+        this.webhookExecutor = webhookExecutor;
     }
 
     @PostMapping(value={"/message"})
-    public ImCallbackVerifier.ImCallbackResponse message(@RequestParam(value="sdkappid", required=false) String sdkAppIdLower, @RequestParam(value="SdkAppid", required=false) String sdkAppIdCamel, @RequestParam(value="command", required=false) String command, @RequestParam(value="CallbackCommand", required=false) String callbackCommand, @RequestParam(value="token", required=false) String queryToken, @RequestParam(value="Sign", required=false) String sign, @RequestParam(value="RequestTime", required=false) String requestTime, @RequestHeader(value="X-Callback-Token", required=false) String headerToken, HttpServletRequest request) throws IOException {
-        String cmd;
+    public WebAsyncTask<ImCallbackVerifier.ImCallbackResponse> message(@RequestParam(value="sdkappid", required=false) String sdkAppIdLower, @RequestParam(value="SdkAppid", required=false) String sdkAppIdCamel, @RequestParam(value="command", required=false) String command, @RequestParam(value="CallbackCommand", required=false) String callbackCommand, @RequestParam(value="token", required=false) String queryToken, @RequestParam(value="Sign", required=false) String sign, @RequestParam(value="RequestTime", required=false) String requestTime, @RequestHeader(value="X-Callback-Token", required=false) String headerToken, HttpServletRequest request, HttpServletResponse response) throws IOException {
         String body = new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        Callable<ImCallbackVerifier.ImCallbackResponse> work = () -> this.handleMessage(sdkAppIdLower, sdkAppIdCamel, command, callbackCommand, queryToken, sign, requestTime, headerToken, body, response);
+        WebAsyncTask<ImCallbackVerifier.ImCallbackResponse> task = new WebAsyncTask<>(
+            Long.valueOf(this.webhookDispatchProperties.timeoutMs()),
+            this.webhookExecutor,
+            work);
+        task.onTimeout(() -> {
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            return ImCallbackVerifier.ImCallbackResponse.reject("BUSY");
+        });
+        return task;
+    }
+
+    private ImCallbackVerifier.ImCallbackResponse handleMessage(String sdkAppIdLower, String sdkAppIdCamel, String command, String callbackCommand, String queryToken, String sign, String requestTime, String headerToken, String body, HttpServletResponse response) throws IOException {
+        String cmd;
         String token = headerToken != null && !headerToken.isBlank() ? headerToken : queryToken;
         String sdkAppId = sdkAppIdLower != null && !sdkAppIdLower.isBlank() ? sdkAppIdLower : sdkAppIdCamel;
         String string = cmd = callbackCommand != null && !callbackCommand.isBlank() ? callbackCommand : command;
@@ -99,13 +121,22 @@ public class ImMessageWebhookController {
             return ImCallbackVerifier.ImCallbackResponse.ok();
         }
         if (this.archiveProperties.enabled() && this.archiveProducer != null && this.archiveProducer.isAfterSendCommand(cmd)) {
-            ImCallbackVerifier.ImCallbackResponse response = this.chatPushCallbackService.handle(sdkAppId, cmd, token, sign, requestTime, body);
+            ImCallbackVerifier.ImCallbackResponse pushResponse = this.pushOrBusy(sdkAppId, cmd, token, sign, requestTime, body, response);
             this.archiveProducer.publishAfterSend(sdkAppId, cmd, token, sign, requestTime, body);
             this.groupMessageMonitorService.tryForwardAsync(cmd, body);
-            return response;
+            return pushResponse;
         }
-        ImCallbackVerifier.ImCallbackResponse pushResponse = this.chatPushCallbackService.handle(sdkAppId, cmd, token, sign, requestTime, body);
+        ImCallbackVerifier.ImCallbackResponse pushResponse = this.pushOrBusy(sdkAppId, cmd, token, sign, requestTime, body, response);
         this.groupMessageMonitorService.tryForwardAsync(cmd, body);
         return pushResponse;
+    }
+
+    private ImCallbackVerifier.ImCallbackResponse pushOrBusy(String sdkAppId, String cmd, String token, String sign, String requestTime, String body, HttpServletResponse response) {
+        try {
+            return this.chatPushCallbackService.handle(sdkAppId, cmd, token, sign, requestTime, body);
+        } catch (GroupPushStreamFullException e) {
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            return ImCallbackVerifier.ImCallbackResponse.reject("BUSY");
+        }
     }
 }

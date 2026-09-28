@@ -162,11 +162,11 @@ public class AdminUsersController {
     public AdminUserGenerationService.TaskCreatedResponse createGenerationTask(
         Authentication auth,
         HttpServletRequest http,
-        @Valid @RequestBody CreateByCountRequest req) {
+        @Valid @RequestBody CreateGenerationTaskRequest req) {
         AdminPrincipal admin = AdminAccess.require(auth);
         AdminAccess.requirePermission(auth, "user.write");
         return generationService.createTask(
-            http, admin.username(), req.password(), req.count(), req.sex());
+            http, admin.username(), req.count(), req.sex());
     }
 
     @GetMapping("/generation-tasks")
@@ -331,6 +331,11 @@ public class AdminUsersController {
         @NotBlank String direction,
         @NotBlank String amount,
         String remark) {}
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record CreateGenerationTaskRequest(
+        @Min(1) @Max(100) int count,
+        String sex) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record CreateByCountRequest(

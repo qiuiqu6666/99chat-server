@@ -54,7 +54,7 @@ class RedPacketGroupTransferTest {
             packetRepository, claimRepository, ledgerService, payPinService, limitService,
             feeService, configService, userRepository, statsRepository, imAdminClient,
             imUserIdService, groupAccessService, platformWalletNotice, claimNoticeService,
-            cardReadCache, null, null);
+            cardReadCache, null, null, null, null, null);
         when(feeService.calculateFee(any(), any(), anyLong())).thenReturn(0L);
         when(packetRepository.save(any(WalletRedPacket.class))).thenAnswer(inv -> {
             WalletRedPacket p = inv.getArgument(0);

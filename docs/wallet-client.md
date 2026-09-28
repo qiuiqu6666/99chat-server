@@ -834,6 +834,8 @@ GET /wallet/ledger?ledgerType=TRANSFER_OUT&ledgerType=TRANSFER_IN&page=0&size=20
 
 发送方也可领取自己发的群红包（每人每包仅可领一次）；须为群成员。
 
+领取按钮的转圈只绑定这一次请求。`id` 在抢到时已经生成。对接见 [wallet-red-packet-claim-loading-client.md](./wallet-red-packet-claim-loading-client.md)。
+
 ### 9.3 详情
 
 见 [§6.4 红包详情与领取明细](#64-红包详情与领取明细)。

@@ -7,6 +7,7 @@ import com.chat99.server.group.UserOwnedGroupService;
 import com.chat99.server.push.PushConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +36,7 @@ public class ImDashboardStatsCallbackService {
     private final ImCallbackVerifier callbackVerifier;
     private final AdminDashboardCounterService dashboardCounter;
     private final ImPushDedupStore dedupStore;
+    private final GroupMessageBucketDedup groupMessageBucketDedup;
     private final UserOwnedGroupService ownedGroupService;
     private final GroupProjectionService groupProjection;
     private final ImUserIdService imUserIdService;
@@ -45,6 +47,7 @@ public class ImDashboardStatsCallbackService {
                                            ImCallbackVerifier callbackVerifier,
                                            AdminDashboardCounterService dashboardCounter,
                                            ImPushDedupStore dedupStore,
+                                           GroupMessageBucketDedup groupMessageBucketDedup,
                                            UserOwnedGroupService ownedGroupService,
                                            GroupProjectionService groupProjection,
                                            ImUserIdService imUserIdService,
@@ -54,6 +57,7 @@ public class ImDashboardStatsCallbackService {
         this.callbackVerifier = callbackVerifier;
         this.dashboardCounter = dashboardCounter;
         this.dedupStore = dedupStore;
+        this.groupMessageBucketDedup = groupMessageBucketDedup;
         this.ownedGroupService = ownedGroupService;
         this.groupProjection = groupProjection;
         this.imUserIdService = imUserIdService;
@@ -111,16 +115,30 @@ public class ImDashboardStatsCallbackService {
             return;
         }
         String groupId = str(body.get("GroupId"));
-        String msgKey = firstNonBlank(str(body.get("MsgId")), str(body.get("MsgSeq")), str(body.get("MsgKey")));
-        if (groupId == null || msgKey == null) {
+        if (groupId == null) {
             return;
         }
-        String dedupKey = "dash|group|" + groupId + "|" + msgKey;
-        if (!dedupStore.markIfNew(dedupKey)) {
+        String msgId = trimToNull(str(body.get("MsgId")));
+        String msgSeq = trimToNull(str(body.get("MsgSeq")));
+        String msgKey = trimToNull(str(body.get("MsgKey")));
+        if (msgId == null && msgSeq == null && msgKey == null) {
             return;
+        }
+        long now = Instant.now().getEpochSecond();
+        Long msgTimestamp = GroupMessageBucketDedup.timestampIfAccepted(
+            msgId, now, groupMessageBucketDedup.ttlHours());
+        if (msgTimestamp != null) {
+            if (!groupMessageBucketDedup.markIfNew(groupId, msgId, msgTimestamp)) {
+                return;
+            }
+        } else {
+            String legacyMessageKey = msgId != null ? msgId : (msgSeq != null ? msgSeq : msgKey);
+            if (!dedupStore.markIfNew("dash|group|" + groupId + "|" + legacyMessageKey)) {
+                return;
+            }
         }
         dashboardCounter.incrementGroupMessage();
-        log.debug("dashboard stat group msg +1 groupId={} msgKey={}", groupId, msgKey);
+        log.debug("dashboard stat group msg +1 groupId={} msgId={}", groupId, msgId);
     }
 
     private void recordGroupCreated(Map<String, Object> body) {
@@ -217,6 +235,13 @@ public class ImDashboardStatsCallbackService {
             }
         }
         return 0;
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private static String firstNonBlank(String... values) {

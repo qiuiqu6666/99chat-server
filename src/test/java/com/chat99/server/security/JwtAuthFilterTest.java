@@ -85,7 +85,7 @@ class JwtAuthFilterTest {
 
     @Test
     void rejectsInvalidJwtForMemberChanges() throws Exception {
-        JwtAuthFilter filter = new JwtAuthFilter(jwtService, userRepository, sessionService);
+        JwtAuthFilter filter = new JwtAuthFilter(jwtService, new UserAuthStatusService(userRepository), sessionService);
         MockHttpServletRequest request = authenticatedRequest(
             "GET", "/me/groups/group-1/members/changes");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -118,7 +118,7 @@ class JwtAuthFilterTest {
         when(jwtService.parseJti(TOKEN)).thenReturn(Optional.of(JTI));
         when(userRepository.findByUserId(USER_ID)).thenReturn(Optional.of(user));
         when(sessionService.isSessionActive(USER_ID, JTI)).thenReturn(false);
-        return new JwtAuthFilter(jwtService, userRepository, sessionService);
+        return new JwtAuthFilter(jwtService, new UserAuthStatusService(userRepository), sessionService);
     }
 
     private static MockHttpServletRequest authenticatedRequest(String method, String path) {

@@ -69,7 +69,7 @@ class WalletOrderCardImmediateReadTest {
             packetRepository, claimRepository, ledgerService, payPinService, limitService,
             feeService, configService, userRepository, statsRepository, imAdminClient,
             imUserIdService, groupAccessService, platformWalletNotice, claimNoticeService,
-            cache, null, null);
+            cache, null, null, null, null, null);
         when(feeService.calculateFee(any(), any(), anyLong())).thenReturn(0L);
         when(userRepository.existsByUserId(anyString())).thenReturn(true);
         when(transferRepository.findById(anyLong())).thenReturn(Optional.empty());

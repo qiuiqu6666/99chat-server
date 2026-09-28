@@ -47,6 +47,7 @@ final class WalletRecordQuerySupport {
                 types.add(t);
             }
         }
+        types.add(WalletLedgerType.GROUP_CREATE);
         return types.stream().distinct().toList();
     }
 

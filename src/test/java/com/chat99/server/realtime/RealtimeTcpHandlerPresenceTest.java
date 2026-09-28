@@ -146,7 +146,7 @@ class RealtimeTcpHandlerPresenceTest {
 
     private EmbeddedChannel openAuthed(Executor queryExecutor) throws Exception {
         EmbeddedChannel ch = new EmbeddedChannel(new RealtimeTcpHandler(
-            authService, sessions, props, json, presenceService, queryExecutor));
+            authService, sessions, props, json, presenceService, queryExecutor, Runnable::run));
         ch.writeInbound(json.writeValueAsString(Map.of(
             "type", "auth", "token", "tok", "deviceId", "d0")) + "\n");
         verify(sessions, atLeastOnce()).register(eq("u1"), any());

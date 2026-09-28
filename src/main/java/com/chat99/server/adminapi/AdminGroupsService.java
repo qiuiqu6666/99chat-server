@@ -5,6 +5,7 @@ import com.chat99.server.group.GroupGameService;
 import com.chat99.server.group.GroupMembershipReconcileService;
 import com.chat99.server.group.GroupProfile;
 import com.chat99.server.group.GroupProfileRepository;
+import com.chat99.server.group.GroupAvatarDefaults;
 import com.chat99.server.im.ImAdminClient;
 import com.chat99.server.im.ImRestException;
 import com.chat99.server.im.ImUserIdService;
@@ -16,6 +17,8 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,6 +47,7 @@ public class AdminGroupsService {
     private final AdminAuditService auditService;
     private final ImUserIdService imUserIdService;
     private final GroupMembershipReconcileService membershipReconcile;
+    private final GroupAvatarDefaults avatarDefaults;
 
     public AdminGroupsService(ImAdminClient imAdmin,
                               UserRepository userRepository,
@@ -52,7 +56,8 @@ public class AdminGroupsService {
                               GroupGameIdService groupGameIdService,
                               AdminAuditService auditService,
                               ImUserIdService imUserIdService,
-                              GroupMembershipReconcileService membershipReconcile) {
+                              GroupMembershipReconcileService membershipReconcile,
+                              GroupAvatarDefaults avatarDefaults) {
         this.imAdmin = imAdmin;
         this.userRepository = userRepository;
         this.groupProfileRepository = groupProfileRepository;
@@ -61,6 +66,7 @@ public class AdminGroupsService {
         this.auditService = auditService;
         this.imUserIdService = imUserIdService;
         this.membershipReconcile = membershipReconcile;
+        this.avatarDefaults = avatarDefaults;
     }
 
     public GroupListResponse listGroups(
@@ -78,9 +84,14 @@ public class AdminGroupsService {
         Map<String, ImAdminClient.GroupAdminInfo> infoMap =
             pageIds.isEmpty() ? Map.of() : imAdmin.fetchGroupAdminInfoMap(pageIds);
 
+        Set<String> ownerIds = new HashSet<>();
+        for (GroupProfile profile : profilePage.getContent()) {
+            ownerIds.add(ownerOf(profile, infoMap.get(profile.getGroupId())));
+        }
+        Map<String, OwnerCard> owners = loadOwners(ownerIds);
         List<GroupListItem> rows = new ArrayList<>();
         for (GroupProfile profile : profilePage.getContent()) {
-            GroupListItem item = toListItem(profile, infoMap.get(profile.getGroupId()));
+            GroupListItem item = toListItem(profile, infoMap.get(profile.getGroupId()), owners);
             if (!matchesGStatus(item, gStatus)) {
                 continue;
             }
@@ -101,7 +112,9 @@ public class AdminGroupsService {
         validateGroupId(groupId);
         ImAdminClient.GroupAdminInfo info = imAdmin.fetchGroupAdminInfo(groupId.trim())
             .orElseThrow(() -> new AdminApiException(HttpStatus.NOT_FOUND, "group_not_found", "group_not_found"));
-        GroupListItem item = toListItem(groupId.trim(), info);
+        String owner = toBusinessUid(info.ownerAccount());
+        Set<String> ownerIds = owner == null || owner.isBlank() ? Set.of() : Set.of(owner);
+        GroupListItem item = toListItem(groupId.trim(), info, loadOwners(ownerIds));
         Map<String, Object> group = new LinkedHashMap<>();
         group.put("g_id", item.gId());
         group.put("g_status", item.gStatus());
@@ -116,7 +129,8 @@ public class AdminGroupsService {
         group.put("g_mute_mode", item.gMuteMode());
         group.put("g_custom_avatar", item.gCustomAvatar());
         group.put("group_mode", 1);
-        group.put("owner_nickname", resolveNickname(item.gOwnerUserUid()));
+        group.put("owner_nickname", item.ownerNickname());
+        group.put("owner_avatar", item.ownerAvatar());
         group.put("face_url", item.gCustomAvatar());
         group.put("group_type", info.type());
         group.put("game_enabled", groupGameService.isGameEnabled(groupId.trim()));
@@ -276,28 +290,28 @@ public class AdminGroupsService {
             safeSize);
     }
 
-    private GroupListItem toListItem(String gid, ImAdminClient.GroupAdminInfo info) {
+    private GroupListItem toListItem(String gid, ImAdminClient.GroupAdminInfo info, Map<String, OwnerCard> owners) {
         String owner = toBusinessUid(info != null ? info.ownerAccount() : null);
+        OwnerCard card = owners.get(owner);
         return new GroupListItem(
             gid,
             info != null ? info.name() : gid,
             mapGStatus(info),
             owner,
             owner,
-            resolveNickname(owner),
+            card != null ? card.nickname() : resolveNickname(owner),
             info != null ? info.memberNum() : null,
             info != null ? info.maxMemberNum() : null,
             info != null && info.createTimeSec() != null ? info.createTimeSec() * 1000L : null,
             info != null ? info.shutUpAllMember() : null,
-            info != null ? info.faceUrl() : null);
+            resolveGroupAvatar(null, info != null ? info.faceUrl() : null),
+            card != null ? card.nickname() : resolveNickname(owner),
+            card != null ? card.avatar() : null);
     }
 
-    private GroupListItem toListItem(GroupProfile profile, ImAdminClient.GroupAdminInfo info) {
-        String owner = profile.getOwnerUserId();
-        if ((owner == null || owner.isBlank()) && info != null) {
-            owner = info.ownerAccount();
-        }
-        owner = toBusinessUid(owner);
+    private GroupListItem toListItem(GroupProfile profile, ImAdminClient.GroupAdminInfo info, Map<String, OwnerCard> owners) {
+        String owner = ownerOf(profile, info);
+        OwnerCard card = owners.get(owner);
         int status = profile.isDismissed() ? -1 : mapGStatus(info);
         Integer memberCount = profile.getMemberCount() > 0
             ? profile.getMemberCount()
@@ -322,13 +336,73 @@ public class AdminGroupsService {
             status,
             owner,
             owner,
-            resolveNickname(owner),
+            card != null ? card.nickname() : resolveNickname(owner),
             memberCount,
             info != null ? info.maxMemberNum() : null,
             createTime,
             info != null ? info.shutUpAllMember() : null,
-            avatar);
+            resolveGroupAvatar(avatar, info != null ? info.faceUrl() : null),
+            card != null ? card.nickname() : resolveNickname(owner),
+            card != null ? card.avatar() : null);
     }
+
+    private String ownerOf(GroupProfile profile, ImAdminClient.GroupAdminInfo info) {
+        String owner = profile.getOwnerUserId();
+        if ((owner == null || owner.isBlank()) && info != null) {
+            owner = info.ownerAccount();
+        }
+        return toBusinessUid(owner);
+    }
+
+    private String resolveGroupAvatar(String stored, String imFace) {
+        String im = blank(imFace);
+        String db = blank(stored);
+        String fallback = avatarDefaults.defaultAvatarUrl();
+        if (im != null && (fallback == null || !im.equals(fallback))) {
+            return avatarDefaults.resolve(im);
+        }
+        if (db != null && (fallback == null || !db.equals(fallback))) {
+            return avatarDefaults.resolve(db);
+        }
+        return avatarDefaults.resolve(im != null ? im : db);
+    }
+
+    private Map<String, OwnerCard> loadOwners(Set<String> userIds) {
+        Set<String> ids = new HashSet<>();
+        for (String id : userIds) {
+            if (id != null && !id.isBlank()) {
+                ids.add(id.trim());
+            }
+        }
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> imAvatars = imAdmin.getPortraitImageUrls(ids);
+        Map<String, OwnerCard> out = new HashMap<>();
+        for (User u : userRepository.findByUserIdIn(ids)) {
+            out.put(u.getUserId(), new OwnerCard(
+                u.getNickname(),
+                publicAvatar(imAvatars.get(u.getUserId()), u.getAvatarUrl())));
+        }
+        return out;
+    }
+
+    private static String publicAvatar(String imFaceUrl, String dbAvatarUrl) {
+        String resolved = AdminUserFormats.resolveListAvatar(imFaceUrl, dbAvatarUrl);
+        if (resolved != null && (resolved.startsWith("http://") || resolved.startsWith("https://"))) {
+            return resolved;
+        }
+        return null;
+    }
+
+    private static String blank(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private record OwnerCard(String nickname, String avatar) {}
 
     private static Specification<GroupProfile> buildProfileSpec(String keyword, String gStatus) {
         return (root, query, cb) -> {
@@ -511,7 +585,9 @@ public class AdminGroupsService {
         Integer maxMemberCount,
         Long createTime,
         String gMuteMode,
-        String gCustomAvatar) {}
+        String gCustomAvatar,
+        String ownerNickname,
+        String ownerAvatar) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record GroupListResponse(

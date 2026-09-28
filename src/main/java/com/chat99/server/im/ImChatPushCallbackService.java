@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,6 +55,7 @@ public class ImChatPushCallbackService {
     private final ImChatPushPreviewService pushPreviewService;
     private final ImChatPushAvatarSupport pushAvatarSupport;
     private final ImUserIdService imUserIdService;
+    private final GroupPushStream groupPushStream;
 
     public ImChatPushCallbackService(PushConfigService pushConfig,
                                      AppSettingService settings,
@@ -74,7 +76,8 @@ public class ImChatPushCallbackService {
                                      ObjectMapper json,
                                      ImChatPushPreviewService pushPreviewService,
                                      ImChatPushAvatarSupport pushAvatarSupport,
-                                     ImUserIdService imUserIdService) {
+                                     ImUserIdService imUserIdService,
+                                     GroupPushStream groupPushStream) {
         this.pushConfig = pushConfig;
         this.settings = settings;
         this.imAdmin = imAdmin;
@@ -95,6 +98,7 @@ public class ImChatPushCallbackService {
         this.pushPreviewService = pushPreviewService;
         this.pushAvatarSupport = pushAvatarSupport;
         this.imUserIdService = imUserIdService;
+        this.groupPushStream = groupPushStream;
     }
 
     public ImCallbackVerifier.ImCallbackResponse handle(String sdkAppId,
@@ -127,6 +131,10 @@ public class ImChatPushCallbackService {
             callbackVerifier.verifyQueryToken(callbackToken);
         }
 
+        if (CMD_GROUP_AFTER.equals(resolvedCommand)) {
+            enqueueGroupAfterSend(body);
+            return ImCallbackVerifier.ImCallbackResponse.ok();
+        }
         processAfterSendBody(body, resolvedCommand);
         return ImCallbackVerifier.ImCallbackResponse.ok();
     }
@@ -148,6 +156,10 @@ public class ImChatPushCallbackService {
             return;
         }
         validateSdkAppId(sdkAppId);
+        if (CMD_GROUP_AFTER.equals(resolvedCommand)) {
+            enqueueGroupAfterSend(body);
+            return;
+        }
         processAfterSendBody(body, resolvedCommand);
     }
 
@@ -186,9 +198,53 @@ public class ImChatPushCallbackService {
 
         if (CMD_C2C_AFTER.equals(resolvedCommand)) {
             handleC2c(body, fromAccount, msgBody);
-        } else {
-            handleGroup(body, fromAccount, msgBody);
         }
+    }
+
+    private void enqueueGroupAfterSend(Map<String, Object> body) {
+        if (intVal(body.get("OnlineOnlyFlag")) == 1 || intVal(body.get("SendMsgResult")) != 0) {
+            return;
+        }
+        String fromAccount = str(body.get("From_Account"));
+        if (fromAccount == null || fromAccount.isBlank() || shouldSkipSender(fromAccount)) {
+            return;
+        }
+        Object msgBodyRaw = body.get("MsgBody");
+        if (!(msgBodyRaw instanceof List<?> msgBody)) {
+            return;
+        }
+        String groupId = str(body.get("GroupId"));
+        if (groupId == null || groupId.isBlank()) {
+            return;
+        }
+        String msgKey = firstNonBlank(str(body.get("MsgId")), str(body.get("MsgSeq")));
+        if (!dedupStore.markIfNew("group|" + groupId + "|" + msgKey)) {
+            log.debug("im chat push group duplicate groupId={} msgKey={}", groupId, msgKey);
+            return;
+        }
+        ImGroupMentionSupport.GroupMentions mentions = ImGroupMentionSupport.parse(body.get("GroupAtInfo"));
+        String msgBodyJson;
+        try {
+            msgBodyJson = json.writeValueAsString(msgBody);
+        } catch (JsonProcessingException e) {
+            log.warn("im chat push group msgBody serialize failed groupId={} err={}", groupId, e.getMessage());
+            return;
+        }
+        String fromBiz = imUserIdService.toBusinessForDisplay(fromAccount);
+        String mentioned = mentions.userIds().stream()
+            .map(imUserIdService::toBusinessForDisplay)
+            .distinct()
+            .reduce((a, b) -> a + "," + b)
+            .orElse("");
+        Map<String, String> fields = new LinkedHashMap<>();
+        fields.put("groupId", groupId);
+        fields.put("fromAccount", fromBiz);
+        fields.put("msgKey", msgKey == null ? "" : msgKey);
+        fields.put("msgBodyJson", msgBodyJson);
+        fields.put("atAll", mentions.atAll() ? "1" : "0");
+        fields.put("mentioned", mentioned);
+        boolean priority = mentions.atAll() || !mentions.userIds().isEmpty();
+        groupPushStream.enqueue(priority, fields);
     }
 
     private void handleC2c(Map<String, Object> body, String fromAccount, List<?> msgBody) {

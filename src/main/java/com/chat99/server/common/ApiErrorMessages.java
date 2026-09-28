@@ -19,6 +19,11 @@ public final class ApiErrorMessages {
         }
         return switch (code) {
             case "UNAUTHORIZED" -> "请先登录";
+            case "BAD_CREDENTIALS" -> "账号或密码错误";
+            case "NEED_SMS" -> "需要短信验证";
+            case "SMS_CODE_INVALID" -> "短信验证码错误";
+            case "USER_NOT_FOUND" -> "账号不存在";
+            case "CHALLENGE_EXPIRED" -> "验证已过期，请重新登录";
             case "MOMENT_FORBIDDEN" -> "无权访问该内容";
             case "MOMENT_NOT_FOUND" -> "内容不存在";
             case "MOMENT_NOT_OWNER" -> "只能删除自己的动态";

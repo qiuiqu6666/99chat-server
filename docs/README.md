@@ -16,6 +16,8 @@
 | [life-payment-worker.md](./life-payment-worker.md) | **插件 Worker** | 生活缴费插件鉴权、领任务、心跳、回调 |
 | [life-payment-yuanren.md](./life-payment-yuanren.md) | **服务端 / 运维** | 大猿人上游：话费充值 + 电费缴费 |
 | [wallet-red-packet-claim-notice-client.md](./wallet-red-packet-claim-notice-client.md) | **客户端** | 群红包领取灰字通知（IM 定向 + TCP 卡片刷新） |
+| [wallet-red-packet-claim-loading-client.md](./wallet-red-packet-claim-loading-client.md) | **客户端** | 群红包领取转圈：只等 claim，不等详情、余额、灰字 |
+| [wallet-red-packet-claim-loading-client.md](./wallet-red-packet-claim-loading-client.md) | **客户端** | 群红包领取转圈：只等 claim，不等详情、余额、灰字 |
 | [backend-wallet-api.md](./backend-wallet-api.md) | **客户端 + 后端** | 转账查单 GET、幂等 `clientOrderId`、unknown recover |
 | [wallet.md](./wallet.md) | 后端 + 运维 | 钱包模块配置与 Admin API |
 | [nickname-client.md](./nickname-client.md) | **客户端（推荐）** | 修改昵称：7 天冷却、唯一性、预检与 PATCH |

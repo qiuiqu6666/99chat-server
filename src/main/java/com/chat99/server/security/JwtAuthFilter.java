@@ -6,8 +6,7 @@ package com.chat99.server.security;
 import com.chat99.server.security.AppSecurityJsonHandlers;
 import com.chat99.server.security.JwtService;
 import com.chat99.server.security.UserSessionService;
-import com.chat99.server.user.User;
-import com.chat99.server.user.UserRepository;
+import com.chat99.server.security.UserAuthStatusService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -36,12 +35,12 @@ extends OncePerRequestFilter {
         Pattern.compile("^/me/groups/[^/]+/members/changes$");
     private static final Pattern ROBOT_PATH = Pattern.compile("^/me/robot(?:/.*)?$");
     private final JwtService jwtService;
-    private final UserRepository userRepository;
+    private final UserAuthStatusService userAuthStatusService;
     private final UserSessionService sessionService;
 
-    public JwtAuthFilter(JwtService jwtService, UserRepository userRepository, UserSessionService sessionService) {
+    public JwtAuthFilter(JwtService jwtService, UserAuthStatusService userAuthStatusService, UserSessionService sessionService) {
         this.jwtService = jwtService;
-        this.userRepository = userRepository;
+        this.userAuthStatusService = userAuthStatusService;
         this.sessionService = sessionService;
     }
 
@@ -109,13 +108,13 @@ extends OncePerRequestFilter {
             String token = header.substring(7);
             try {
                 String userId = this.jwtService.parseUserId(token);
-                Optional user = this.userRepository.findByUserId(userId);
-                if (user.isEmpty()) {
+                UserAuthStatusService.Result user = this.userAuthStatusService.resolve(userId);
+                if (!user.found()) {
                     log.warn("JWT rejected user not found userId={} path={}", (Object)userId, (Object)request.getRequestURI());
                     AppSecurityJsonHandlers.writeUnauthorized((HttpServletResponse)response);
                     return;
                 }
-                if (((User)user.get()).getStatus() != 1) {
+                if (user.status() != 1) {
                     log.warn("JWT rejected account disabled userId={} path={}", (Object)userId, (Object)request.getRequestURI());
                     AppSecurityJsonHandlers.writeAccountDisabled((HttpServletResponse)response);
                     return;

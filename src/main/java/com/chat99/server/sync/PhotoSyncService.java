@@ -77,14 +77,23 @@ public class PhotoSyncService {
         Integer height,
         Integer duration,
         String mediaType,
-        String mimeType) {}
+        String mimeType,
+        Boolean acceptAlreadyCommitted) {}
 
     public record InitUploadResponse(
         String uploadUuid,
         String photoUuid,
         String presignedPutUrl,
         String ossOriginKey,
-        int presignExpiresInSeconds) {}
+        int presignExpiresInSeconds,
+        String uploadState,
+        Long committedAt,
+        String localAssetId,
+        String contentHash,
+        String originUrl,
+        String thumbUrl,
+        String previewUrl,
+        Long sizeBytes) {}
 
     public record CompleteRequest(String uploadUuid) {}
 
@@ -146,27 +155,12 @@ public class PhotoSyncService {
             }
             Optional<UserPhoto> existing = photoRepository.findByUserIdAndContentHashAndStatus(
                 userId, item.contentHash(), 1);
-            if (existing.isPresent()) {
+            if (existing.isPresent() && BackupMatch.sameContent(existing.get(), video)) {
                 UserPhoto p = existing.get();
-                if (!video || MediaSyncTypes.isVideo(p)) {
-                    results.add(new CheckResultItem(item.localAssetId(),
-                        PhotoCheckStatus.ALREADY_EXISTS.name(), p.getPhotoUuid(),
-                        p.getOriginUrl(), p.getThumbUrl(), p.getPreviewUrl()));
-                    continue;
-                }
-            }
-            if (item.localAssetId() != null && !item.localAssetId().isBlank()) {
-                Optional<UserPhoto> byLocal = photoRepository.findByUserIdAndLocalAssetIdAndStatus(
-                    userId, item.localAssetId(), 1);
-                if (byLocal.isPresent()) {
-                    UserPhoto p = byLocal.get();
-                    if (!video || MediaSyncTypes.isVideo(p)) {
-                        results.add(new CheckResultItem(item.localAssetId(),
-                            PhotoCheckStatus.ALREADY_EXISTS.name(), p.getPhotoUuid(),
-                            p.getOriginUrl(), p.getThumbUrl(), p.getPreviewUrl()));
-                        continue;
-                    }
-                }
+                results.add(new CheckResultItem(item.localAssetId(),
+                    PhotoCheckStatus.ALREADY_EXISTS.name(), p.getPhotoUuid(),
+                    p.getOriginUrl(), p.getThumbUrl(), p.getPreviewUrl()));
+                continue;
             }
             results.add(new CheckResultItem(item.localAssetId(),
                 PhotoCheckStatus.NEED_UPLOAD.name(), null, null, null, null));
@@ -181,10 +175,8 @@ public class PhotoSyncService {
                 new VideoSyncService.InitUploadRequest(
                     req.syncSessionId(), req.localAssetId(), req.contentHash(), req.sizeBytes(),
                     req.takenAt(), req.width(), req.height(), req.duration(),
-                    req.mediaType(), req.mimeType()));
-            return new InitUploadResponse(
-                video.uploadUuid(), video.photoUuid(), video.presignedPutUrl(),
-                video.ossOriginKey(), video.presignExpiresInSeconds());
+                    req.mediaType(), req.mimeType(), req.acceptAlreadyCommitted()));
+            return copyInit(video);
         }
 
         validateHash(req.contentHash());
@@ -194,15 +186,20 @@ public class PhotoSyncService {
         if (req.sizeBytes() != null && req.sizeBytes() > ossProps.maxUploadBytes()) {
             throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE");
         }
-        if (!oss.isConfigured()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "OSS_NOT_CONFIGURED");
-        }
 
         Optional<UserPhoto> existing = photoRepository.findByUserIdAndContentHashAndStatus(
             userId, req.contentHash(), 1);
-        if (existing.isPresent()) {
-            UserPhoto p = existing.get();
-            return new InitUploadResponse(null, p.getPhotoUuid(), null, p.getOssOriginKey(), 0);
+        if (existing.isPresent() && BackupMatch.sameContent(existing.get(), false)) {
+            UserPhoto photo = existing.get();
+            if (Boolean.TRUE.equals(req.acceptAlreadyCommitted())) {
+                return alreadyCommitted(photo);
+            }
+        }
+        if (!oss.isConfigured()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "OSS_NOT_CONFIGURED");
+        }
+        if (existing.isPresent() && BackupMatch.sameContent(existing.get(), false)) {
+            return pendingForExisting(userId, req, existing.get(), existing.get().getOssOriginKey(), "image/jpeg");
         }
 
         String photoUuid = UUID.randomUUID().toString();
@@ -230,8 +227,7 @@ public class PhotoSyncService {
         uploadRepository.save(pending);
 
         String presigned = oss.presignedPutUrl(originKey, "image/jpeg", syncProps.presignExpireSeconds());
-        return new InitUploadResponse(uploadUuid, photoUuid, presigned, originKey,
-            syncProps.presignExpireSeconds());
+        return needUpload(uploadUuid, photoUuid, presigned, originKey);
     }
 
     @Transactional(noRollbackFor = DataIntegrityViolationException.class)
@@ -243,8 +239,7 @@ public class PhotoSyncService {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "OSS_NOT_CONFIGURED");
         }
 
-        UserPhotoUpload upload = uploadRepository.findByUploadUuidAndUserIdAndStatus(
-                body.uploadUuid(), userId, UploadStatus.PENDING)
+        UserPhotoUpload upload = uploadRepository.findByUploadUuidAndUserId(body.uploadUuid(), userId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UPLOAD_NOT_FOUND"));
 
         if (MediaType.VIDEO.name().equalsIgnoreCase(upload.getMediaType())) {
@@ -253,32 +248,24 @@ public class PhotoSyncService {
             return toCompleteResponse(video);
         }
 
+        if (upload.getStatus() == UploadStatus.COMPLETED) {
+            return completedUploadReceipt(userId, upload);
+        }
+        if (upload.getStatus() != UploadStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "UPLOAD_NOT_FOUND");
+        }
         if (upload.getExpiresAt().isBefore(Instant.now())) {
             upload.setStatus(UploadStatus.EXPIRED);
             uploadRepository.save(upload);
             throw new ResponseStatusException(HttpStatus.GONE, "UPLOAD_EXPIRED");
         }
 
+        byte[] originBytes = loadVerifiedBytes(upload, file, ossProps.maxUploadBytes());
         Optional<UserPhoto> byHash = photoRepository.findByUserIdAndContentHashAndStatus(
             userId, upload.getContentHash(), 1);
-        if (byHash.isPresent()) {
+        if (byHash.isPresent() && BackupMatch.sameContent(byHash.get(), false)) {
             finishUploadRecord(upload);
-            UserPhoto p = byHash.get();
-            return toCompleteResponse(p);
-        }
-
-        byte[] originBytes;
-        if (file != null && !file.isEmpty()) {
-            if (file.getSize() > ossProps.maxUploadBytes()) {
-                throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE");
-            }
-            originBytes = file.getBytes();
-            oss.putBytes(upload.getOssOriginKey(), originBytes, file.getContentType());
-        } else {
-            if (!oss.exists(upload.getOssOriginKey())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OSS_OBJECT_NOT_FOUND");
-            }
-            originBytes = oss.getBytes(upload.getOssOriginKey());
+            return toCompleteResponse(byHash.get());
         }
 
         BufferedImage img = imageProcessor.decode(originBytes);
@@ -367,13 +354,90 @@ public class PhotoSyncService {
 
     @Transactional
     public ContactSyncService.CompleteResponse completePhotoSession(String userId, String syncSessionId) {
-        SyncSession session = sessionService.requireRunningSession(userId, syncSessionId, SyncType.PHOTOS);
-        sessionService.completeSession(session, session.getSyncMode());
-        return new ContactSyncService.CompleteResponse(session.getSessionUuid(), "COMPLETED", 0);
+        SyncSession session = sessionService.lockForComplete(userId, syncSessionId, SyncType.PHOTOS, false);
+        if (session.getStatus() == SyncEnums.SessionStatus.COMPLETED) {
+            return ContactSyncService.completedReceipt(session);
+        }
+        sessionService.markCompleted(session, 0, false);
+        return ContactSyncService.completedReceipt(session);
     }
 
     private void sessionRepositoryOptionalBump(String userId, String sessionUuid) {
         sessionService.bumpUploadStatsIfRunning(userId, sessionUuid);
+    }
+
+    private InitUploadResponse needUpload(String uploadUuid, String photoUuid, String presigned, String originKey) {
+        return new InitUploadResponse(uploadUuid, photoUuid, presigned, originKey,
+            syncProps.presignExpireSeconds(), "NEED_UPLOAD", null, null, null, null, null, null, null);
+    }
+
+    private InitUploadResponse alreadyCommitted(UserPhoto photo) {
+        Long committedAt = photo.getCreatedAt() == null ? null : photo.getCreatedAt().getEpochSecond();
+        return new InitUploadResponse(null, photo.getPhotoUuid(), null, photo.getOssOriginKey(), 0,
+            "ALREADY_COMMITTED", committedAt, photo.getLocalAssetId(), photo.getContentHash(),
+            photo.getOriginUrl(), photo.getThumbUrl(), photo.getPreviewUrl(), photo.getSizeBytes());
+    }
+
+    private InitUploadResponse pendingForExisting(String userId, InitUploadRequest req, UserPhoto photo,
+                                                  String originKey, String contentType) {
+        String uploadUuid = UUID.randomUUID().toString();
+        UserPhotoUpload pending = new UserPhotoUpload();
+        pending.setUploadUuid(uploadUuid);
+        pending.setPhotoUuid(photo.getPhotoUuid());
+        pending.setUserId(userId);
+        pending.setLocalAssetId(req.localAssetId());
+        pending.setContentHash(req.contentHash());
+        pending.setOssOriginKey(originKey);
+        pending.setExpectedSize(req.sizeBytes());
+        if (req.takenAt() != null) {
+            pending.setTakenAt(Instant.ofEpochSecond(req.takenAt()));
+        }
+        pending.setWidth(req.width());
+        pending.setHeight(req.height());
+        pending.setMimeType(req.mimeType());
+        pending.setMediaType(MediaType.IMAGE.name());
+        pending.setSyncSessionId(req.syncSessionId());
+        pending.setStatus(UploadStatus.PENDING);
+        pending.setExpiresAt(Instant.now().plus(syncProps.uploadExpireMinutes(), ChronoUnit.MINUTES));
+        uploadRepository.save(pending);
+        String presigned = oss.presignedPutUrl(originKey, contentType, syncProps.presignExpireSeconds());
+        return needUpload(uploadUuid, photo.getPhotoUuid(), presigned, originKey);
+    }
+
+    private InitUploadResponse copyInit(VideoSyncService.InitUploadResponse video) {
+        return new InitUploadResponse(
+            video.uploadUuid(), video.photoUuid(), video.presignedPutUrl(), video.ossOriginKey(),
+            video.presignExpiresInSeconds(), video.uploadState(), video.committedAt(),
+            video.localAssetId(), video.contentHash(), video.originUrl(), video.thumbUrl(),
+            video.previewUrl(), video.sizeBytes());
+    }
+
+    private byte[] loadVerifiedBytes(UserPhotoUpload upload, MultipartFile file, long maxBytes) throws IOException {
+        byte[] originBytes;
+        if (file != null && !file.isEmpty()) {
+            if (file.getSize() > maxBytes) {
+                throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE");
+            }
+            originBytes = file.getBytes();
+        } else {
+            if (!oss.exists(upload.getOssOriginKey())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OSS_OBJECT_NOT_FOUND");
+            }
+            long length = oss.objectContentLength(upload.getOssOriginKey());
+            if (length > maxBytes) {
+                throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE");
+            }
+            originBytes = oss.getBytes(upload.getOssOriginKey());
+        }
+        ContentDigest.verify(originBytes, upload.getContentHash(), upload.getExpectedSize());
+        return originBytes;
+    }
+
+    private CompleteResponse completedUploadReceipt(String userId, UserPhotoUpload upload) {
+        return photoRepository.findByPhotoUuidAndUserId(upload.getPhotoUuid(), userId)
+            .or(() -> photoRepository.findByUserIdAndContentHashAndStatus(userId, upload.getContentHash(), 1))
+            .map(this::toCompleteResponse)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UPLOAD_NOT_FOUND"));
     }
 
     private void finishUploadRecord(UserPhotoUpload upload) {

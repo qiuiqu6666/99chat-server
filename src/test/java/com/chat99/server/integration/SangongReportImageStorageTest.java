@@ -29,4 +29,12 @@ class SangongReportImageStorageTest {
         assertThat(IntegrationReportImageController.SangongReportImageStorage.buildObjectKey("report-x"))
             .endsWith("/report-x.jpg");
     }
+
+    @Test
+    void keepsXlsxExtension() {
+        assertThat(IntegrationReportImageController.SangongReportImageStorage.buildObjectKey("report-x.xlsx"))
+            .endsWith("/report-x.xlsx");
+        assertThat(IntegrationReportImageController.SangongReportImageStorage.buildObjectKey("report-x.xlsx"))
+            .doesNotContain(".xlsx.jpg");
+    }
 }

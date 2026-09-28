@@ -42,8 +42,9 @@ public class SyncController {
         @NotNull SyncMode mode) {}
 
     @GetMapping("/status")
-    public SyncStatusService.StatusResponse status(Authentication auth) {
-        return syncStatusService.getStatus((String) auth.getPrincipal());
+    public SyncStatusService.StatusResponse status(Authentication auth,
+                                                   @RequestParam(required = false) String deviceId) {
+        return syncStatusService.getStatus((String) auth.getPrincipal(), deviceId);
     }
 
     // --- Contacts ---

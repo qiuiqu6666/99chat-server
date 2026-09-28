@@ -2,8 +2,6 @@ package com.chat99.server.wallet;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -22,7 +20,6 @@ import lombok.Setter;
 public class WalletRedPacketClaim {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "packet_id", nullable = false)
@@ -39,6 +36,9 @@ public class WalletRedPacketClaim {
 
     @PrePersist
     void onCreate() {
+        if (id == null) {
+            id = ClaimIds.next();
+        }
         if (createdAt == null) createdAt = Instant.now();
     }
 }

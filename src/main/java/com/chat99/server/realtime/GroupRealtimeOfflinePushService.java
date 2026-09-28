@@ -1,5 +1,6 @@
 package com.chat99.server.realtime;
 
+import com.chat99.server.push.ConversationNotifyService;
 import com.chat99.server.push.PushDisplayNameResolver;
 import com.chat99.server.push.PushMessage;
 import com.chat99.server.push.PushService;
@@ -22,15 +23,18 @@ public class GroupRealtimeOfflinePushService {
     private final PushService pushService;
     private final RealtimeProperties props;
     private final PushDisplayNameResolver displayNames;
+    private final ConversationNotifyService conversationNotifyService;
     private final ObjectMapper json;
 
     public GroupRealtimeOfflinePushService(PushService pushService,
                                            RealtimeProperties props,
                                            PushDisplayNameResolver displayNames,
+                                           ConversationNotifyService conversationNotifyService,
                                            ObjectMapper json) {
         this.pushService = pushService;
         this.props = props;
         this.displayNames = displayNames;
+        this.conversationNotifyService = conversationNotifyService;
         this.json = json;
     }
 
@@ -38,6 +42,19 @@ public class GroupRealtimeOfflinePushService {
         if (!props.offlinePushEnabled()
             || !props.groupOfflinePushEnabled()
             || !pushService.enabled()) {
+            return;
+        }
+        if (targetUserId == null || targetUserId.isBlank() || event == null) {
+            return;
+        }
+        if (conversationNotifyService.isMuted(targetUserId, "group", event.groupId())) {
+            log.debug("group realtime offline push skipped: muted userId={} groupId={} action={}",
+                targetUserId, event.groupId(), event.action());
+            return;
+        }
+        if (GroupRealtimePublisher.ACTION_MEMBER_LEFT.equals(event.action())
+            && event.memberUserIds() != null
+            && event.memberUserIds().contains(targetUserId)) {
             return;
         }
         PushMessage message = buildMessage(targetUserId, event);

@@ -37,6 +37,7 @@ public class RealtimeTcpServer {
     private final ObjectMapper json;
     private final PresenceService presenceService;
     private final Executor queryExecutor;
+    private final Executor presenceTouchExecutor;
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
@@ -45,7 +46,8 @@ public class RealtimeTcpServer {
     public RealtimeTcpServer(RealtimeProperties props, RealtimeAuthService authService,
                              RealtimeSessionRegistry sessions, RealtimeConnectionLimiter connectionLimiter,
                              ObjectMapper json, PresenceService presenceService,
-                             @Qualifier(RealtimeQueryExecutorConfig.BEAN_NAME) Executor queryExecutor) {
+                             @Qualifier(RealtimeQueryExecutorConfig.BEAN_NAME) Executor queryExecutor,
+                             @Qualifier(PresenceTouchExecutorConfig.BEAN_NAME) Executor presenceTouchExecutor) {
         this.props = props;
         this.authService = authService;
         this.sessions = sessions;
@@ -53,6 +55,7 @@ public class RealtimeTcpServer {
         this.json = json;
         this.presenceService = presenceService;
         this.queryExecutor = queryExecutor;
+        this.presenceTouchExecutor = presenceTouchExecutor;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -83,7 +86,8 @@ public class RealtimeTcpServer {
                             .addLast(new StringEncoder(StandardCharsets.UTF_8))
                             .addLast(new IdleStateHandler(props.idleTimeoutSeconds(), 0, 0, TimeUnit.SECONDS))
                             .addLast(new RealtimeTcpHandler(
-                                authService, sessions, props, json, presenceService, queryExecutor));
+                                authService, sessions, props, json, presenceService,
+                                queryExecutor, presenceTouchExecutor));
                     }
                 });
             serverChannel = bootstrap.bind(props.tcpPort()).sync().channel();

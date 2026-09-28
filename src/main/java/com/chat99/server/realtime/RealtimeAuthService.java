@@ -2,8 +2,7 @@ package com.chat99.server.realtime;
 
 import com.chat99.server.security.JwtService;
 import com.chat99.server.security.UserSessionService;
-import com.chat99.server.user.User;
-import com.chat99.server.user.UserRepository;
+import com.chat99.server.security.UserAuthStatusService;
 import io.jsonwebtoken.JwtException;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -15,14 +14,14 @@ public class RealtimeAuthService {
 
     private final JwtService jwtService;
     private final UserSessionService sessionService;
-    private final UserRepository userRepository;
+    private final UserAuthStatusService userAuthStatusService;
 
     public RealtimeAuthService(JwtService jwtService,
                                UserSessionService sessionService,
-                               UserRepository userRepository) {
+                               UserAuthStatusService userAuthStatusService) {
         this.jwtService = jwtService;
         this.sessionService = sessionService;
-        this.userRepository = userRepository;
+        this.userAuthStatusService = userAuthStatusService;
     }
 
     public Optional<AuthResult> authenticate(String token, String deviceId) {
@@ -35,8 +34,8 @@ public class RealtimeAuthService {
             if (jti.isEmpty() || !sessionService.isSessionActive(userId, jti.get())) {
                 return Optional.empty();
             }
-            User user = userRepository.findByUserId(userId).orElse(null);
-            if (user == null || user.getStatus() != 1) {
+            UserAuthStatusService.Result user = userAuthStatusService.resolve(userId);
+            if (!user.found() || user.status() != 1) {
                 return Optional.empty();
             }
             String resolvedDeviceId = deviceId;

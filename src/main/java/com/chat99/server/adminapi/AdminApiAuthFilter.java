@@ -100,7 +100,9 @@ extends OncePerRequestFilter {
             return header.substring(7).trim();
         }
         String query = request.getParameter("access_token");
-        if ("/api/v1/admin/realtime/events".equals(request.getRequestURI()) && query != null && !query.isBlank()) {
+        String path = request.getRequestURI();
+        if (query != null && !query.isBlank()
+            && ("/api/v1/admin/realtime/events".equals(path) || path.startsWith("/api/v1/media/"))) {
             return query.trim();
         }
         return null;

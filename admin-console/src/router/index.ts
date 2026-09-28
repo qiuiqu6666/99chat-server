@@ -1,43 +1,30 @@
-import { createRouter, createWebHistory } from "vue-router";
-import { getToken } from "@/utils/auth";
-import { useAuthStore } from "@/stores/auth";
-import { routes } from "./routes";
+import type { App } from 'vue';
+import {
+  type RouterHistory,
+  createMemoryHistory,
+  createRouter,
+  createWebHashHistory,
+  createWebHistory
+} from 'vue-router';
+import { createBuiltinVueRoutes } from './routes/builtin';
+import { createRouterGuard } from './guard';
 
-const router = createRouter({
-  history: createWebHistory(),
-  routes,
-  scrollBehavior() {
-    return { left: 0, top: 0 };
-  }
+const { VITE_ROUTER_HISTORY_MODE = 'history', VITE_BASE_URL } = import.meta.env;
+
+const historyCreatorMap: Record<Env.RouterHistoryMode, (base?: string) => RouterHistory> = {
+  hash: createWebHashHistory,
+  history: createWebHistory,
+  memory: createMemoryHistory
+};
+
+export const router = createRouter({
+  history: historyCreatorMap[VITE_ROUTER_HISTORY_MODE](VITE_BASE_URL),
+  routes: createBuiltinVueRoutes()
 });
 
-let meLoaded = false;
-
-router.beforeEach(async (to, _from, next) => {
-  document.title = `${String(to.meta.title || "")} · ${import.meta.env.VITE_APP_TITLE || "99Chat"}`;
-  if (to.path === "/login") {
-    meLoaded = false;
-    next();
-    return;
-  }
-  if (!getToken()) {
-    meLoaded = false;
-    next({ path: "/login", query: { redirect: to.fullPath } });
-    return;
-  }
-  const auth = useAuthStore();
-  if (!meLoaded || !auth.username || !auth.permissions.length) {
-    try {
-      await auth.fetchMe();
-      meLoaded = true;
-    } catch {
-      meLoaded = false;
-      await auth.logout();
-      next({ path: "/login", query: { redirect: to.fullPath } });
-      return;
-    }
-  }
-  next();
-});
-
-export default router;
+/** Setup Vue Router */
+export async function setupRouter(app: App) {
+  app.use(router);
+  createRouterGuard(router);
+  await router.isReady();
+}

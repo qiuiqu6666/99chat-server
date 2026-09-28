@@ -44,7 +44,7 @@ class RedPacketPublicIdTest {
             packetRepository, claimRepository, ledgerService, payPinService, limitService,
             feeService, configService, userRepository, statsRepository, imAdminClient,
             imUserIdService, groupAccessService, platformWalletNotice, claimNoticeService,
-            cardReadCache, null, null);
+            cardReadCache, null, null, null, null, null);
     }
 
     @Test

@@ -10,6 +10,7 @@ import com.chat99.server.group.GroupImSyncService;
 import com.chat99.server.group.GroupChangeIdGenerator;
 import com.chat99.server.group.GroupMember;
 import com.chat99.server.group.GroupMemberJoinChannel;
+import com.chat99.server.group.GroupMemberRedisSet;
 import com.chat99.server.group.GroupProfile;
 import com.chat99.server.group.GroupProjectionService;
 import com.chat99.server.group.GroupRealtimeDetailFactory;
@@ -68,8 +69,10 @@ public class ImGroupRealtimeCallbackService {
     private final ImUserIdService imUserIdService;
     private final GroupImSyncService groupImSyncService;
     private final ObjectMapper json;
+    private final GroupMemberRedisSet memberRedisSet;
+    private final GroupMemberSetRepairJob memberRepairJob;
 
-    public ImGroupRealtimeCallbackService(PushConfigService pushConfig, AppSettingService settings, ImCallbackVerifier callbackVerifier, ImAdminClient imAdmin, GroupMemberCacheService groupMemberCache, GroupRealtimePublisher groupRealtime, GroupChangeEmitter groupChangeEmitter, ImPushDedupStore dedupStore, GroupProjectionService groupProjection, GroupSystemNoticeService systemNoticeService, ImUserIdService imUserIdService, GroupImSyncService groupImSyncService, ObjectMapper json) {
+    public ImGroupRealtimeCallbackService(PushConfigService pushConfig, AppSettingService settings, ImCallbackVerifier callbackVerifier, ImAdminClient imAdmin, GroupMemberCacheService groupMemberCache, GroupRealtimePublisher groupRealtime, GroupChangeEmitter groupChangeEmitter, ImPushDedupStore dedupStore, GroupProjectionService groupProjection, GroupSystemNoticeService systemNoticeService, ImUserIdService imUserIdService, GroupImSyncService groupImSyncService, ObjectMapper json, GroupMemberRedisSet memberRedisSet, GroupMemberSetRepairJob memberRepairJob) {
         this.pushConfig = pushConfig;
         this.settings = settings;
         this.callbackVerifier = callbackVerifier;
@@ -83,6 +86,8 @@ public class ImGroupRealtimeCallbackService {
         this.imUserIdService = imUserIdService;
         this.groupImSyncService = groupImSyncService;
         this.json = json;
+        this.memberRedisSet = memberRedisSet;
+        this.memberRepairJob = memberRepairJob;
     }
 
     public void handle(String sdkAppId, String command, String callbackToken, String sign, String requestTime, String rawBody) {
@@ -195,7 +200,6 @@ public class ImGroupRealtimeCallbackService {
         String joinType = ImGroupRealtimeCallbackService.str(body.get("JoinType"));
         List<String> membersIm = ImGroupRealtimeCallbackService.extractMemberAccounts(body.get("NewMemberList"));
         Instant occurredAt = Instant.now();
-        this.groupMemberCache.invalidate(groupId);
         String invitedBy = null;
         String joinChannel = null;
         if ("Apply".equalsIgnoreCase(joinType)) {
@@ -227,7 +231,6 @@ public class ImGroupRealtimeCallbackService {
         String operator = ImGroupRealtimeCallbackService.str(body.get("Operator_Account"));
         List<String> membersIm = ImGroupRealtimeCallbackService.extractMemberAccounts(body.get("NewMemberList"));
         Instant occurredAt = Instant.now();
-        this.groupMemberCache.invalidate(groupId);
         String opBiz = toBusinessId(operator);
         String invitedBy = (opBiz == null || opBiz.isBlank()) ? null : opBiz;
         String joinChannel = invitedBy == null ? null : GroupMemberJoinChannel.INVITE;
@@ -254,7 +257,6 @@ public class ImGroupRealtimeCallbackService {
             membersIm = List.of(operator);
         }
         Instant occurredAt = Instant.now();
-        this.groupMemberCache.invalidate(groupId);
         this.groupProjection.onMembersRemoved(groupId, membersIm);
         List<String> members = toBusinessIds(membersIm);
         this.groupImSyncService.enqueueMembershipReconcile(groupId, members, "im_callback_exit");
@@ -272,7 +274,6 @@ public class ImGroupRealtimeCallbackService {
         String operator = ImGroupRealtimeCallbackService.str(body.get("Operator_Account"));
         List<String> membersIm = ImGroupRealtimeCallbackService.extractMemberAccounts(body.get("KickedMemberList"));
         Instant occurredAt = Instant.now();
-        this.groupMemberCache.invalidate(groupId);
         this.groupProjection.onMembersRemoved(groupId, membersIm);
         List<String> members = toBusinessIds(membersIm);
         this.groupImSyncService.enqueueMembershipReconcile(groupId, members, "im_callback_kick");
@@ -309,7 +310,6 @@ public class ImGroupRealtimeCallbackService {
             ImGroupRealtimeCallbackService.union(localIds, this.memberTargets(groupId, null)),
             operator == null ? List.of() : List.of(toBusinessId(operator)));
         Instant occurredAt = Instant.now();
-        this.groupMemberCache.invalidate(groupId);
         this.groupProjection.onGroupDismissed(groupId);
         if (this.groupChangeEmitter.hasRecentDuplicate(groupId, "group_dismissed", List.of())) {
             log.debug("skip duplicate group_dismissed callback groupId={}", (Object)groupId);
@@ -327,7 +327,6 @@ public class ImGroupRealtimeCallbackService {
         if (!(rawList instanceof List) || (list = (List)rawList).isEmpty()) {
             return;
         }
-        this.groupMemberCache.invalidate(groupId);
         List<String> targets = this.memberTargets(groupId, null);
         for (Object item : list) {
             if (!(item instanceof Map)) continue;
@@ -398,7 +397,6 @@ public class ImGroupRealtimeCallbackService {
         if (!(rawList instanceof List) || (list = (List)rawList).isEmpty()) {
             return;
         }
-        this.groupMemberCache.invalidate(groupId);
         List<String> targets = this.memberTargets(groupId, null);
         for (Object item : list) {
             if (!(item instanceof Map)) continue;
@@ -420,7 +418,23 @@ public class ImGroupRealtimeCallbackService {
     }
 
     private List<String> memberTargets(String groupId, List<String> extraUserIds) {
-        List<String> members = this.imAdmin.listGroupMemberUserIds(groupId, 10000);
+        List<String> members = new ArrayList<String>();
+        boolean sawMember = false;
+        if (groupId != null && !groupId.isBlank()) {
+            String cursor = "0";
+            do {
+                GroupMemberRedisSet.ScanPage page = this.memberRedisSet.scan(groupId, cursor, 500);
+                if (!page.members().isEmpty()) {
+                    sawMember = true;
+                    members.addAll(page.members());
+                }
+                cursor = page.nextCursor();
+            } while (cursor != null && !"0".equals(cursor));
+        }
+        if (!sawMember) {
+            this.memberRepairJob.submit(groupId);
+            return toBusinessIds(extraUserIds == null ? List.of() : extraUserIds);
+        }
         return toBusinessIds(ImGroupRealtimeCallbackService.union(members, extraUserIds));
     }
 

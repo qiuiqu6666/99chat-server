@@ -1,5 +1,8 @@
 package com.chat99.server.im;
 
+import com.chat99.server.group.GroupMemberId;
+import com.chat99.server.group.GroupMemberRedisSet;
+import com.chat99.server.group.GroupMemberRepository;
 import com.chat99.server.push.ConversationNotifyService;
 import com.chat99.server.push.PushConfigService;
 import com.chat99.server.push.PushFocusService;
@@ -18,7 +21,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,6 +37,8 @@ public class GroupPushAggregationService {
     private final PushConfigService pushConfig;
     private final PushService pushService;
     private final ConversationNotifyService conversationNotifyService;
+    private final GroupMemberRedisSet memberRedis;
+    private final GroupMemberRepository memberRepository;
     private final PushFocusService pushFocusService;
     private final ImChatPushPreviewService pushPreviewService;
     private final ObjectMapper objectMapper;
@@ -41,6 +48,8 @@ public class GroupPushAggregationService {
                                        PushConfigService pushConfig,
                                        PushService pushService,
                                        ConversationNotifyService conversationNotifyService,
+                                       GroupMemberRedisSet memberRedis,
+                                       GroupMemberRepository memberRepository,
                                        PushFocusService pushFocusService,
                                        ImChatPushPreviewService pushPreviewService,
                                        ObjectMapper objectMapper) {
@@ -48,6 +57,8 @@ public class GroupPushAggregationService {
         this.pushConfig = pushConfig;
         this.pushService = pushService;
         this.conversationNotifyService = conversationNotifyService;
+        this.memberRedis = memberRedis;
+        this.memberRepository = memberRepository;
         this.pushFocusService = pushFocusService;
         this.pushPreviewService = pushPreviewService;
         this.objectMapper = objectMapper;
@@ -84,21 +95,20 @@ public class GroupPushAggregationService {
             return 0;
         }
         Set<String> muted = conversationNotifyService.findMutedUserIdsForGroup(event.groupId(), memberIds);
+        Set<String> focused = pushFocusService.focusedOnGroup(memberIds, event.groupId());
         int aggSeconds = resolveAggSeconds(memberIds.size());
         long flushAtMs = Instant.now().toEpochMilli() + aggSeconds * 1000L;
-        int enqueued = 0;
+        List<String> accepted = new ArrayList<>();
         for (String memberId : memberIds) {
             if (memberId == null || memberId.isBlank()
                 || memberId.equals(event.fromAccount())
-                || (muted.contains(memberId) && !event.mentions(memberId))
-                || pushFocusService.isFocusedOnConversation(memberId, "group", null, event.groupId())) {
+                || muted.contains(memberId.trim())
+                || (focused.contains(memberId.trim()) && !event.mentions(memberId))) {
                 continue;
             }
-            if (recordMember(event, memberId.trim(), flushAtMs, aggSeconds)) {
-                enqueued++;
-            }
+            accepted.add(memberId.trim());
         }
-        return enqueued;
+        return writeMembers(event, accepted, flushAtMs, aggSeconds);
     }
 
     public void flushDue() {
@@ -141,6 +151,14 @@ public class GroupPushAggregationService {
                     log.debug("im chat push skipped: push focus group={} userId={}", groupId, userId);
                     return;
                 }
+                if (conversationNotifyService.isMuted(userId, "group", groupId)) {
+                    log.debug("im chat push skipped: muted group={} userId={}", groupId, userId);
+                    return;
+                }
+                if (hasLeftGroup(groupId, userId)) {
+                    log.debug("im chat push skipped: left group={} userId={}", groupId, userId);
+                    return;
+                }
                 pushService.sendChatToUser(userId, message, pushConfig.isChatPushSkipWhenOnline());
             }
         } catch (Exception e) {
@@ -148,6 +166,76 @@ public class GroupPushAggregationService {
         } finally {
             redis.delete(hashKey);
         }
+    }
+
+    private boolean hasLeftGroup(String groupId, String userId) {
+        boolean tombstone = memberRepository.findById(new GroupMemberId(groupId, userId))
+            .map(member -> member.isDeleted())
+            .orElse(false);
+        if (tombstone) {
+            memberRedis.remove(groupId, userId);
+            return true;
+        }
+        return !memberRedis.contains(groupId, userId);
+    }
+
+    private int writeMembers(GroupMessageEvent event, List<String> memberIds, long flushAtMs, int aggSeconds) {
+        if (memberIds.isEmpty()) {
+            return 0;
+        }
+        RedisSerializer<String> serializer = redis.getStringSerializer();
+        List<Object> addedFlags = redis.executePipelined((RedisCallback<Object>) connection -> {
+            byte[] schedule = serializer.serialize(SCHEDULE_KEY);
+            for (String memberId : memberIds) {
+                connection.zAdd(schedule, flushAtMs, serializer.serialize(event.groupId() + "|" + memberId));
+            }
+            return null;
+        });
+        List<String> fresh = new ArrayList<>();
+        List<String> existing = new ArrayList<>();
+        for (int i = 0; i < memberIds.size(); i++) {
+            if (isNewMember(i < addedFlags.size() ? addedFlags.get(i) : null)) {
+                fresh.add(memberIds.get(i));
+            } else {
+                existing.add(memberIds.get(i));
+            }
+        }
+        if (!fresh.isEmpty()) {
+            redis.executePipelined((RedisCallback<Object>) connection -> {
+                for (String memberId : fresh) {
+                    byte[] hash = serializer.serialize(HASH_PREFIX + event.groupId() + ":" + memberId);
+                    connection.hSet(hash, serializer.serialize("count"), serializer.serialize("1"));
+                    connection.hSet(hash, serializer.serialize("senders"), serializer.serialize(event.senderTitle()));
+                    connection.hSet(hash, serializer.serialize("msgBodyJson"), serializer.serialize(blank(event.msgBodyJson())));
+                    connection.hSet(hash, serializer.serialize("lastFrom"), serializer.serialize(event.fromAccount()));
+                    connection.hSet(hash, serializer.serialize("lastMsgKey"), serializer.serialize(blank(event.msgKey())));
+                    connection.hSet(hash, serializer.serialize("title"), serializer.serialize(blank(event.title())));
+                    connection.hSet(hash, serializer.serialize("avatarUrl"), serializer.serialize(blank(event.avatarUrl())));
+                    if (aggSeconds > 0) {
+                        connection.expire(hash, aggSeconds + 120L);
+                    }
+                }
+                return null;
+            });
+        }
+        for (String memberId : existing) {
+            mergeHash(HASH_PREFIX + event.groupId() + ":" + memberId, event);
+        }
+        return fresh.size();
+    }
+
+    private static boolean isNewMember(Object flag) {
+        if (flag instanceof Boolean created) {
+            return created;
+        }
+        if (flag instanceof Number number) {
+            return number.longValue() > 0;
+        }
+        return false;
+    }
+
+    private static String blank(String value) {
+        return value == null ? "" : value;
     }
 
     private boolean recordMember(GroupMessageEvent event, String memberId, long flushAtMs, int aggSeconds) {

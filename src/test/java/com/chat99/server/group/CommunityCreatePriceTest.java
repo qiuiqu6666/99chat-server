@@ -20,11 +20,23 @@ class CommunityCreatePriceTest {
     }
 
     @Test
-    void paidGroupIdIsStableAndRequiresUuid() {
+    void paidGroupIdIsMixedTenCharsAndRequiresUuid() {
         String requestId = "f8f10aa6-7db0-4de0-a23a-0d720a598719";
-        assertThat(GroupCreateService.paidGroupId(requestId))
+        String groupId = GroupCreateService.paidGroupId(requestId);
+        assertThat(groupId).startsWith("@TGS#_");
+        assertThat(GroupCreateService.isMixedGroupToken(groupId.substring("@TGS#_".length()))).isTrue();
+        assertThat(GroupCreateService.paidGroupId(requestId)).isEqualTo(groupId);
+        assertThat(GroupCreateService.legacyPaidGroupId(requestId))
             .isEqualTo("@TGS#_Pf8f10aa67db04de0a23a0d720a598719");
         assertThatThrownBy(() -> GroupCreateService.paidGroupId("retry-1"))
             .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void randomGroupTokenAlwaysMixesLettersAndDigits() {
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        for (int i = 0; i < 200; i++) {
+            assertThat(GroupCreateService.isMixedGroupToken(GroupCreateService.randomMixedToken(random))).isTrue();
+        }
     }
 }

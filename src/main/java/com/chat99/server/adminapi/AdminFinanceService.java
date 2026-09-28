@@ -88,9 +88,9 @@ public class AdminFinanceService {
         Specification<WalletLedger> spec = buildLedgerSpec(blankToNull(userUid), typeFilter);
         Page<WalletLedger> result = ledgerRepository.findAll(
             spec, PageRequest.of(safePage - 1, safeSize, resolveLedgerSort(sort)));
-        Map<String, String> nicknames = loadNicknames(collectUserIdsFromLedgers(result.getContent()));
+        Map<String, UserCard> users = loadUsers(collectUserIdsFromLedgers(result.getContent()));
         List<FinanceTransactionItem> items = result.getContent().stream()
-            .map(l -> toTransactionItem(l, nicknames))
+            .map(l -> toTransactionItem(l, users))
             .filter(item -> matchesStatus(item.status(), status))
             .toList();
         return new FinanceListResponse(
@@ -121,9 +121,9 @@ public class AdminFinanceService {
         Specification<WalletTransfer> spec = buildTransferSpec(uid, keyword, onlyOut, onlyIn);
         Page<WalletTransfer> result = transferRepository.findAll(
             spec, PageRequest.of(safePage - 1, safeSize, resolveTransferSort(sort)));
-        Map<String, String> nicknames = loadNicknames(collectUserIdsFromTransfers(result.getContent()));
+        Map<String, UserCard> users = loadUsers(collectUserIdsFromTransfers(result.getContent()));
         List<FinanceTransactionItem> items = result.getContent().stream()
-            .map(t -> toTransferItem(t, resolveTransferType(t, uid, onlyIn), nicknames))
+            .map(t -> toTransferItem(t, resolveTransferType(t, uid, onlyIn), users))
             .filter(item -> matchesStatus(item.status(), status))
             .toList();
         return new FinanceListResponse(
@@ -145,9 +145,9 @@ public class AdminFinanceService {
             blankToNull(userUid), blankToNull(direction), blankToNull(keyword));
         Page<WalletExchangeOrder> result = exchangeOrderRepository.findAll(
             spec, PageRequest.of(safePage - 1, safeSize, resolveExchangeSort(sort)));
-        Map<String, String> nicknames = loadNicknames(collectUserIdsFromExchanges(result.getContent()));
+        Map<String, UserCard> users = loadUsers(collectUserIdsFromExchanges(result.getContent()));
         List<FinanceExchangeItem> items = result.getContent().stream()
-            .map(o -> toExchangeItem(o, nicknames))
+            .map(o -> toExchangeItem(o, users))
             .toList();
         return new FinanceListResponse(
             "wallet_exchange",
@@ -191,10 +191,10 @@ public class AdminFinanceService {
                 groupIds.add(p.getGroupId().trim());
             }
         }
-        Map<String, String> nicknames = loadNicknames(userIds);
+        Map<String, UserCard> users = loadUsers(userIds);
         Map<String, String> groupNames = loadGroupNames(groupIds);
         List<FinanceRedPacketItem> items = packets.stream()
-            .map(p -> toRedPacketItem(p, nicknames, groupNames))
+            .map(p -> toRedPacketItem(p, users, groupNames))
             .toList();
         return new FinanceListResponse(
             "wallet_red_packet",
@@ -235,16 +235,16 @@ public class AdminFinanceService {
                 userIds.add(w.getUserId());
             }
         }
-        Map<String, String> nicknames = loadNicknames(userIds);
+        Map<String, UserCard> users = loadUsers(userIds);
         List<FinanceRechargeWithdrawItem> items = new ArrayList<>();
         for (Object row : merged) {
             if (row instanceof WalletDeposit d) {
-                FinanceRechargeWithdrawItem item = toRechargeItem(d, nicknames);
+                FinanceRechargeWithdrawItem item = toRechargeItem(d, users);
                 if (matchesRechargeWithdrawStatus(item.status(), status)) {
                     items.add(item);
                 }
             } else if (row instanceof WalletWithdrawal w) {
-                FinanceRechargeWithdrawItem item = toWithdrawItem(w, nicknames);
+                FinanceRechargeWithdrawItem item = toWithdrawItem(w, users);
                 if (matchesRechargeWithdrawStatus(item.status(), status)) {
                     items.add(item);
                 }
@@ -266,7 +266,7 @@ public class AdminFinanceService {
             null);
     }
 
-    private FinanceTransactionItem toTransactionItem(WalletLedger l, Map<String, String> nicknames) {
+    private FinanceTransactionItem toTransactionItem(WalletLedger l, Map<String, UserCard> users) {
         int type = resolveTransactionType(l);
         String owner = l.getUserId();
         String counter = l.getCounterpartUserId();
@@ -315,9 +315,11 @@ public class AdminFinanceService {
             String.valueOf(l.getId()),
             type,
             fromUid,
-            nicknames.getOrDefault(fromUid, "—"),
+            nickOf(users, fromUid),
+            avatarOf(users, fromUid),
             toUid,
-            nicknames.getOrDefault(toUid, "—"),
+            nickOf(users, toUid),
+            avatarOf(users, toUid),
             amountStr,
             "0",
             balanceBefore,
@@ -328,16 +330,18 @@ public class AdminFinanceService {
             epochMs(l.getCreatedAt()));
     }
 
-    private FinanceTransactionItem toTransferItem(WalletTransfer t, int type, Map<String, String> nicknames) {
+    private FinanceTransactionItem toTransferItem(WalletTransfer t, int type, Map<String, UserCard> users) {
         String from = t.getFromUserId();
         String to = t.getToUserId();
         return new FinanceTransactionItem(
             String.valueOf(t.getId()),
             type,
             from,
-            nicknames.getOrDefault(from, "—"),
+            nickOf(users, from),
+            avatarOf(users, from),
             to,
-            nicknames.getOrDefault(to, "—"),
+            nickOf(users, to),
+            avatarOf(users, to),
             formatAmount(t.getCurrency(), t.getAmount()),
             formatAmount(t.getCurrency(), t.getFeeAmount()),
             null,
@@ -348,7 +352,7 @@ public class AdminFinanceService {
             epochMs(t.getCreatedAt()));
     }
 
-    private FinanceExchangeItem toExchangeItem(WalletExchangeOrder o, Map<String, String> nicknames) {
+    private FinanceExchangeItem toExchangeItem(WalletExchangeOrder o, Map<String, UserCard> users) {
         ExchangeDirection dir = o.getDirection();
         String inputCurrency;
         String outputCurrency;
@@ -368,7 +372,8 @@ public class AdminFinanceService {
         return new FinanceExchangeItem(
             "EX" + o.getId(),
             o.getUserId(),
-            nicknames.getOrDefault(o.getUserId(), "—"),
+            nickOf(users, o.getUserId()),
+            avatarOf(users, o.getUserId()),
             mapExchangeDirection(dir),
             dir.name(),
             inputAmount,
@@ -380,11 +385,12 @@ public class AdminFinanceService {
             epochMs(o.getCreatedAt()));
     }
 
-    private FinanceRechargeWithdrawItem toRechargeItem(WalletDeposit d, Map<String, String> nicknames) {
+    private FinanceRechargeWithdrawItem toRechargeItem(WalletDeposit d, Map<String, UserCard> users) {
         return new FinanceRechargeWithdrawItem(
             String.valueOf(d.getId()),
             d.getUserId(),
-            nicknames.getOrDefault(d.getUserId(), "—"),
+            nickOf(users, d.getUserId()),
+            avatarOf(users, d.getUserId()),
             "充值",
             "TRON/USDT",
             Double.parseDouble(AdminUserFormats.decimalFromMicro(d.getAmountMicro())),
@@ -394,11 +400,12 @@ public class AdminFinanceService {
             epochMs(d.getCreatedAt()));
     }
 
-    private FinanceRechargeWithdrawItem toWithdrawItem(WalletWithdrawal w, Map<String, String> nicknames) {
+    private FinanceRechargeWithdrawItem toWithdrawItem(WalletWithdrawal w, Map<String, UserCard> users) {
         return new FinanceRechargeWithdrawItem(
             String.valueOf(w.getId()),
             w.getUserId(),
-            nicknames.getOrDefault(w.getUserId(), "—"),
+            nickOf(users, w.getUserId()),
+            avatarOf(users, w.getUserId()),
             "提现",
             "TRON/USDT",
             Double.parseDouble(AdminUserFormats.decimalFromMicro(w.getAmountMicro())),
@@ -409,14 +416,15 @@ public class AdminFinanceService {
     }
 
     private FinanceRedPacketItem toRedPacketItem(
-            WalletRedPacket p, Map<String, String> nicknames, Map<String, String> groupNames) {
+            WalletRedPacket p, Map<String, UserCard> users, Map<String, String> groupNames) {
         int grabbed = Math.max(0, p.getPacketCount() - p.getRemainingCount());
         return new FinanceRedPacketItem(
             String.valueOf(p.getId()),
             p.getSenderUserId(),
-            nicknames.getOrDefault(p.getSenderUserId(), "—"),
+            nickOf(users, p.getSenderUserId()),
+            avatarOf(users, p.getSenderUserId()),
             mapPacketType(p.getPacketType()),
-            resolveRedPacketTarget(p, nicknames, groupNames),
+            resolveRedPacketTarget(p, users, groupNames),
             formatAmount(p.getCurrency(), p.getTotalAmount()),
             grabbed,
             p.getPacketCount(),
@@ -425,10 +433,10 @@ public class AdminFinanceService {
     }
 
     private static String resolveRedPacketTarget(
-            WalletRedPacket p, Map<String, String> nicknames, Map<String, String> groupNames) {
+            WalletRedPacket p, Map<String, UserCard> users, Map<String, String> groupNames) {
         if (p.getExclusiveUserId() != null && !p.getExclusiveUserId().isBlank()) {
             String uid = p.getExclusiveUserId().trim();
-            String nick = nicknames.get(uid);
+            String nick = nickOf(users, uid);
             if (nick != null && !nick.isBlank() && !"—".equals(nick)) {
                 return nick;
             }
@@ -752,7 +760,7 @@ public class AdminFinanceService {
         };
     }
 
-    private Map<String, String> loadNicknames(Collection<String> userIds) {
+    private Map<String, UserCard> loadUsers(Collection<String> userIds) {
         Set<String> ids = new HashSet<>();
         for (String id : userIds) {
             if (id != null && !id.isBlank() && !"—".equals(id)) {
@@ -762,12 +770,44 @@ public class AdminFinanceService {
         if (ids.isEmpty()) {
             return Map.of();
         }
-        Map<String, String> out = new HashMap<>();
+        Map<String, String> imAvatars = imAdminClient.getPortraitImageUrls(ids);
+        Map<String, UserCard> out = new HashMap<>();
         for (User u : userRepository.findByUserIdIn(ids)) {
-            out.put(u.getUserId(), u.getNickname());
+            out.put(u.getUserId(), new UserCard(
+                u.getNickname(),
+                publicAvatar(imAvatars.get(u.getUserId()), u.getAvatarUrl())));
         }
         return out;
     }
+
+    private static String nickOf(Map<String, UserCard> users, String uid) {
+        if (uid == null || uid.isBlank() || "—".equals(uid)) {
+            return "—";
+        }
+        UserCard card = users.get(uid);
+        if (card == null || card.nickname() == null || card.nickname().isBlank()) {
+            return "—";
+        }
+        return card.nickname();
+    }
+
+    private static String avatarOf(Map<String, UserCard> users, String uid) {
+        if (uid == null || uid.isBlank() || "—".equals(uid)) {
+            return null;
+        }
+        UserCard card = users.get(uid);
+        return card == null ? null : card.avatar();
+    }
+
+    private static String publicAvatar(String imFaceUrl, String dbAvatarUrl) {
+        String resolved = AdminUserFormats.resolveListAvatar(imFaceUrl, dbAvatarUrl);
+        if (resolved != null && (resolved.startsWith("http://") || resolved.startsWith("https://"))) {
+            return resolved;
+        }
+        return null;
+    }
+
+    private record UserCard(String nickname, String avatar) {}
 
     private static Set<String> collectUserIdsFromLedgers(List<WalletLedger> rows) {
         Set<String> ids = new HashSet<>();
@@ -986,8 +1026,10 @@ public class AdminFinanceService {
         int transactionType,
         String fromUid,
         String fromNickname,
+        String fromAvatar,
         String toUid,
         String toNickname,
+        String toAvatar,
         String amount,
         String fee,
         String balanceBefore,
@@ -1002,6 +1044,7 @@ public class AdminFinanceService {
         String bizNo,
         String userUid,
         String nickname,
+        String userAvatarFileName,
         String bizType,
         String channel,
         double amount,
@@ -1015,6 +1058,7 @@ public class AdminFinanceService {
         String orderNo,
         String userUid,
         String nickname,
+        String userAvatarFileName,
         String directionLabel,
         String direction,
         String inputAmount,
@@ -1030,6 +1074,7 @@ public class AdminFinanceService {
         String id,
         String senderUid,
         String nickname,
+        String userAvatarFileName,
         String packetType,
         String targetSummary,
         String totalAmount,

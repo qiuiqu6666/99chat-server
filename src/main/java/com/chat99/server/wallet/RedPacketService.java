@@ -1,15 +1,21 @@
 package com.chat99.server.wallet;
 
 import com.chat99.server.group.GroupAccessService;
+import com.chat99.server.group.GroupMemberRedisSet;
+import com.chat99.server.group.GroupMemberRepository;
 import com.chat99.server.im.ImAdminClient;
 import com.chat99.server.im.ImUserIdService;
 import com.chat99.server.notify.PlatformWalletNoticeService;
 import com.chat99.server.user.UserRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +56,9 @@ public class RedPacketService {
     private final WalletOrderCardReadCache cardReadCache;
     private final TransactionTemplate transactionTemplate;
     private final RedPacketClaimStateCache claimStateCache;
+    private final RedPacketGrabStore grabStore;
+    private final GroupMemberRedisSet groupMemberRedisSet;
+    private final GroupMemberRepository groupMemberRepository;
 
     public RedPacketService(WalletRedPacketRepository packetRepository,
                             WalletRedPacketClaimRepository claimRepository,
@@ -64,7 +73,10 @@ public class RedPacketService {
                             RedPacketClaimNoticeService claimNoticeService,
                             WalletOrderCardReadCache cardReadCache,
                             @Nullable PlatformTransactionManager transactionManager,
-                            @Nullable RedPacketClaimStateCache claimStateCache) {
+                            @Nullable RedPacketClaimStateCache claimStateCache,
+                            @Nullable RedPacketGrabStore grabStore,
+                            @Nullable GroupMemberRedisSet groupMemberRedisSet,
+                            @Nullable GroupMemberRepository groupMemberRepository) {
         this.packetRepository = packetRepository;
         this.claimRepository = claimRepository;
         this.ledgerService = ledgerService;
@@ -82,6 +94,9 @@ public class RedPacketService {
         this.cardReadCache = cardReadCache;
         this.transactionTemplate = transactionManager == null ? null : new TransactionTemplate(transactionManager);
         this.claimStateCache = claimStateCache;
+        this.grabStore = grabStore;
+        this.groupMemberRedisSet = groupMemberRedisSet;
+        this.groupMemberRepository = groupMemberRepository;
     }
 
     @Transactional
@@ -171,48 +186,86 @@ public class RedPacketService {
         return packet;
     }
 
+    public List<RedPacketGrabStore.PendingClaim> pendingClaims(long packetId) {
+        if (grabStore == null) {
+            return List.of();
+        }
+        try {
+            return grabStore.pending(packetId);
+        } catch (RuntimeException e) {
+            log.warn("red packet pending read failed packetId={}: {}", packetId, e.getMessage());
+            return List.of();
+        }
+    }
+
     public WalletRedPacketClaim claim(String userId, String packetIdRef) {
-        WalletRedPacket packet = requirePacket(packetIdRef);
-        if (packet.getStatus() != RedPacketStatus.ACTIVE) {
+        if (!isNumericId(packetIdRef)) {
+            WalletRedPacket packet = requirePacket(packetIdRef);
+            return claim(userId, String.valueOf(packet.getId()));
+        }
+        if (grabStore == null) {
             throw WalletExceptions.of(HttpStatus.GONE, "RED_PACKET_EXPIRED");
         }
-        if (packet.getRemainingCount() <= 0) {
-            throw WalletExceptions.of(HttpStatus.GONE, "RED_PACKET_EMPTY");
+        long packetId = Long.parseLong(packetIdRef.trim());
+        RedPacketClaimResult result = grabStore.claim(packetId, userId);
+        if (result.claimed() && !RedPacketClaimResult.ALREADY.equals(result.status())) {
+            WalletRedPacketClaim claim = new WalletRedPacketClaim();
+            claim.setId(parseClaimId(result.claimId()));
+            claim.setPacketId(packetId);
+            claim.setUserId(userId);
+            claim.setAmount(result.amount() == null ? 0L : result.amount());
+            claim.setCreatedAt(Instant.now());
+            return claim;
         }
-        requireGroupMemberIfGroupPacket(packet, userId);
+        throw legacyClaimStatus(result.status());
+    }
 
-        boolean holdGrab = false;
-        RedPacketClaimStateCache.GrabResult grab = tryGrabSlot(packet, userId);
-        if (grab == RedPacketClaimStateCache.GrabResult.ALREADY) {
-            throw WalletExceptions.of(HttpStatus.CONFLICT, "ALREADY_CLAIMED");
+    private void ensureArmed(long packetId) {
+        if (grabStore.armed(packetId)) {
+            return;
         }
-        if (grab == RedPacketClaimStateCache.GrabResult.EMPTY) {
-            WalletRedPacket fresh = requirePacket(packetIdRef);
-            if (fresh.getStatus() != RedPacketStatus.ACTIVE) {
-                throw WalletExceptions.of(HttpStatus.GONE, "RED_PACKET_EXPIRED");
+        synchronized (("rp-arm-" + packetId).intern()) {
+            if (grabStore.armed(packetId)) {
+                return;
             }
-            if (fresh.getRemainingCount() <= 0) {
-                throw WalletExceptions.of(HttpStatus.GONE, "RED_PACKET_EMPTY");
+            WalletRedPacket packet = packetRepository.findById(packetId).orElse(null);
+            if (packet == null || packet.getStatus() != RedPacketStatus.ACTIVE || packet.getRemainingCount() <= 0) {
+                return;
             }
-            // Redis 计数落后于 DB 时降级行锁拆包
-            log.debug("red packet redis empty but db remaining packetId={}", fresh.getId());
-        } else if (grab == RedPacketClaimStateCache.GrabResult.OK) {
-            holdGrab = true;
+            WalletRedPacket slice = new WalletRedPacket();
+            slice.setId(packet.getId());
+            slice.setSenderUserId(packet.getSenderUserId());
+            slice.setGroupId(packet.getGroupId());
+            slice.setCurrency(packet.getCurrency());
+            slice.setPacketType(packet.getPacketType());
+            slice.setPerAmount(packet.getPerAmount());
+            slice.setExpiresAt(packet.getExpiresAt());
+            slice.setTotalAmount(packet.getRemainingAmount());
+            slice.setPacketCount(packet.getRemainingCount());
+            Map<String, String> already = new LinkedHashMap<>();
+            for (WalletRedPacketClaim row : claimRepository.findByPacketIdOrderByCreatedAtAsc(packetId)) {
+                already.put(row.getUserId(), row.getId() + "|" + row.getAmount() + "|" + RedPacketClaimResult.CREDITED);
+            }
+            grabStore.arm(slice, splitForGrab(slice), already);
+            if (groupMemberRedisSet != null && groupMemberRepository != null
+                && packet.getGroupId() != null && !packet.getGroupId().isBlank()) {
+                groupMemberRedisSet.addAll(packet.getGroupId(),
+                    groupMemberRepository.findActiveUserIdsByGroupId(packet.getGroupId()));
+            }
         }
+    }
 
-        try {
-            return persistClaim(userId, packetIdRef);
-        } catch (ResponseStatusException e) {
-            if (holdGrab && shouldReleaseGrab(e.getReason())) {
-                claimStateCache.releaseGrab(packet.getId(), userId);
-            }
-            throw e;
-        } catch (RuntimeException e) {
-            if (holdGrab) {
-                claimStateCache.releaseGrab(packet.getId(), userId);
-            }
-            throw e;
+    private static ResponseStatusException legacyClaimStatus(String status) {
+        if (RedPacketClaimResult.NOT_MEMBER.equals(status)) {
+            return WalletExceptions.of(HttpStatus.FORBIDDEN, "NOT_GROUP_MEMBER");
         }
+        if (RedPacketClaimResult.ALREADY.equals(status)) {
+            return WalletExceptions.of(HttpStatus.CONFLICT, "ALREADY_CLAIMED");
+        }
+        if (RedPacketClaimResult.EMPTY.equals(status)) {
+            return WalletExceptions.of(HttpStatus.GONE, "RED_PACKET_EMPTY");
+        }
+        return WalletExceptions.of(HttpStatus.GONE, "RED_PACKET_EXPIRED");
     }
 
     @Transactional
@@ -287,15 +340,38 @@ public class RedPacketService {
         return grab;
     }
 
-    private void scheduleClaimStateInit(WalletRedPacket packet) {
-        if (claimStateCache == null || packet.getId() == null) {
+    private void armGrab(WalletRedPacket packet) {
+        if (grabStore == null) {
             return;
         }
-        Runnable init = () -> claimStateCache.init(
-            packet.getId(),
-            packet.getRemainingCount(),
-            RedPacketClaimStateCache.ttlSeconds(packet),
-            List.of());
+        List<Long> amounts = splitForGrab(packet);
+        grabStore.arm(packet, amounts, Map.of());
+        if (groupMemberRedisSet != null && groupMemberRepository != null
+            && packet.getGroupId() != null && !packet.getGroupId().isBlank()) {
+            groupMemberRedisSet.addAll(packet.getGroupId(),
+                groupMemberRepository.findActiveUserIdsByGroupId(packet.getGroupId()));
+        }
+    }
+
+    private static List<Long> splitForGrab(WalletRedPacket packet) {
+        int count = packet.getPacketCount();
+        long total = packet.getTotalAmount();
+        if (packet.getPacketType() == RedPacketType.NORMAL_GROUP && packet.getPerAmount() != null) {
+            List<Long> parts = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
+                parts.add(packet.getPerAmount());
+            }
+            return parts;
+        }
+        return new ArrayList<>(RedPacketSplitUtils.luckySplit(
+            total, count, RedPacketSplitUtils.MIN_UNIT, ThreadLocalRandom.current()));
+    }
+
+    private void scheduleClaimStateInit(WalletRedPacket packet) {
+        if (packet.getId() == null || isDirectCredit(packet.getPacketType())) {
+            return;
+        }
+        Runnable init = () -> armGrab(packet);
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             init.run();
             return;
@@ -633,6 +709,9 @@ public class RedPacketService {
         if (claimRepository.existsByPacketIdAndUserId(packet.getId(), userId)) {
             return RedPacketClaimUiState.RECEIVED;
         }
+        if (redisClaim(packet.getId(), userId) != null) {
+            return RedPacketClaimUiState.RECEIVED;
+        }
         if (packet.getStatus() == RedPacketStatus.ACTIVE && packet.getRemainingCount() > 0) {
             if (packet.getPacketType() == RedPacketType.NORMAL_GROUP
                 || packet.getPacketType() == RedPacketType.LUCKY_GROUP) {
@@ -643,9 +722,34 @@ public class RedPacketService {
     }
 
     public Long myClaimAmount(WalletRedPacket packet, String userId) {
-        return claimRepository.findByPacketIdAndUserId(packet.getId(), userId)
+        Long stored = claimRepository.findByPacketIdAndUserId(packet.getId(), userId)
             .map(WalletRedPacketClaim::getAmount)
             .orElse(null);
+        if (stored != null) {
+            return stored;
+        }
+        RedPacketGrabStore.PendingClaim pending = redisClaim(packet.getId(), userId);
+        return pending == null ? null : pending.amount();
+    }
+
+    private RedPacketGrabStore.PendingClaim redisClaim(long packetId, String userId) {
+        if (grabStore == null || userId == null || userId.isBlank()) {
+            return null;
+        }
+        try {
+            return grabStore.claimOf(packetId, userId);
+        } catch (RuntimeException e) {
+            log.warn("red packet redis claim read failed packetId={}: {}", packetId, e.getMessage());
+            return null;
+        }
+    }
+
+    private static long parseClaimId(String claimId) {
+        try {
+            return Long.parseLong(claimId);
+        } catch (RuntimeException e) {
+            return ClaimIds.next();
+        }
     }
 
     private void debitSend(String senderUserId, WalletCurrency currency, long charge, long fee,

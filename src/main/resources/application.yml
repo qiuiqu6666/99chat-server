@@ -7,6 +7,10 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-timeout: 3000
 
   jpa:
     hibernate:
@@ -51,6 +55,11 @@ server:
   port: 8081
   compression:
     enabled: false
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 20
+    accept-count: 500
 
 chat99:
   scheduling:
@@ -98,6 +107,8 @@ chat99:
       skip-sender-ids: administrator
       max-group-members-per-push: 0
       dedup-ttl-hours: 48
+      group-message-dedup:
+        ttl-hours: 48
       group-push-agg-seconds-small: 10
       group-push-agg-seconds-medium: 30
       group-push-agg-seconds-large: 60
@@ -106,10 +117,18 @@ chat99:
       group-member-cache-ttl-minutes: 10
       group-push-flush-batch-size: 300
       group-push-flush-interval-ms: 2000
+      group-push-worker-threads: 8
+      group-push-worker-batch-size: 500
       group-monitor-enabled: ${IM_GROUP_MONITOR_ENABLED:false}
       group-monitor-url: ${IM_GROUP_MONITOR_URL:}
       group-monitor-token: ${IM_GROUP_MONITOR_TOKEN:}
       group-monitor-group-id: ${IM_GROUP_MONITOR_GROUP_ID:}
+    webhook-dispatch:
+      enabled: ${IM_WEBHOOK_DISPATCH_ENABLED:true}
+      core-pool-size: 8
+      max-pool-size: 32
+      queue-capacity: 200
+      timeout-ms: 5000
     # 钱包 IM 卡片：默认只记日志不拒发（空订单/重放不再拦截进会话）
     wallet-card-guard:
       enabled: ${IM_WALLET_CARD_GUARD_ENABLED:true}
@@ -308,6 +327,8 @@ chat99:
   presence:
     heartbeat-throttle-seconds: 30
     max-batch-size: 200
+    last-active-flush-interval-ms: 5000
+    last-active-flush-batch-size: 200
   location:
     # 单用户写入间隔（秒）；默认 3 小时，更频静默丢弃并返回 nextUploadAfterMs
     min-interval-seconds: ${LOCATION_MIN_INTERVAL_SECONDS:10800}

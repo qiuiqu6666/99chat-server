@@ -14,7 +14,9 @@ import com.chat99.server.group.GroupProperties;
 import com.chat99.server.sticker.StickerProperties;
 import com.chat99.server.im.restqueue.ImRestQueueProperties;
 import com.chat99.server.im.ImProperties;
+import com.chat99.server.im.GroupMessageDedupProperties;
 import com.chat99.server.im.ImCallbackProperties;
+import com.chat99.server.im.ImWebhookDispatchProperties;
 import com.chat99.server.official.OfficialAccountProperties;
 import com.chat99.server.platform.PlatformProperties;
 import com.chat99.server.call.CallProperties;
@@ -57,6 +59,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
     ImProperties.class,
     ImRestQueueProperties.class,
     ImCallbackProperties.class,
+    ImWebhookDispatchProperties.class,
+    GroupMessageDedupProperties.class,
     JwtProperties.class,
     SmsProperties.class,
     PlatformIdProperties.class,

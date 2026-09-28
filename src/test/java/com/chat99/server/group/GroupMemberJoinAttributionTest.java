@@ -38,7 +38,7 @@ class GroupMemberJoinAttributionTest {
     void setUp() {
         projection = new GroupProjectionService(
             profileRepository, memberRepository, changeEventRepository, im, avatarDefaults,
-            restQueue, ownedGroupService, meGroupsListCache);
+            restQueue, ownedGroupService, meGroupsListCache, null);
     }
 
     @Test

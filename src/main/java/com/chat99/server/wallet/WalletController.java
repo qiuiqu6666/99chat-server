@@ -600,8 +600,8 @@ public class WalletController {
 
     /** 富集领取明细：币种来自红包，手气最佳=拼手气多份红包的最大金额，昵称头像批量取自数据库 users 表。 */
     private List<RedPacketClaimRecord> enrichClaims(WalletRedPacket packet, List<WalletRedPacketClaim> claims) {
-        if (claims.isEmpty()) {
-            return List.of();
+        if (claims == null) {
+            claims = List.of();
         }
         String currency = packet.getCurrency() == WalletCurrency.USDT
             ? WalletCurrency.USDT.getApiCode()
@@ -636,7 +636,32 @@ public class WalletController {
                 c.getCreatedAt(),
                 bestLuck,
                 p != null ? p.nickname() : null,
-                p != null ? p.avatarUrl() : null));
+                p != null ? p.avatarUrl() : null,
+                RedPacketClaimResult.CREDITED));
+        }
+        if (packet.getId() != null) {
+            java.util.Set<String> seen = claims.stream()
+                .map(WalletRedPacketClaim::getUserId)
+                .collect(java.util.stream.Collectors.toSet());
+            for (RedPacketGrabStore.PendingClaim pending : redPacketService.pendingClaims(packet.getId())) {
+                if (seen.contains(pending.userId()) || !RedPacketClaimResult.PROCESSING.equals(pending.status())) {
+                    continue;
+                }
+                WalletPartyNameResolver.PartyProfile p = profiles.get(pending.userId());
+                if (p == null) {
+                    p = partyNameResolver.resolveProfiles(java.util.Set.of(pending.userId())).get(pending.userId());
+                }
+                out.add(new RedPacketClaimRecord(
+                    pending.claimId(),
+                    pending.userId(),
+                    currency,
+                    pending.amount(),
+                    null,
+                    false,
+                    p != null ? p.nickname() : null,
+                    p != null ? p.avatarUrl() : null,
+                    RedPacketClaimResult.PROCESSING));
+            }
         }
         return out;
     }

@@ -10,9 +10,11 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "group_profile")
+@DynamicUpdate
 @Getter
 @Setter
 @NoArgsConstructor

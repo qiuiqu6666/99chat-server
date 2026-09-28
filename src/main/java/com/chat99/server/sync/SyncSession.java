@@ -64,6 +64,12 @@ public class SyncSession {
     @Column(name = "failed_count", nullable = false)
     private int failedCount;
 
+    @Column(name = "deleted_count", nullable = false)
+    private int deletedCount;
+
+    @Column(name = "committed_revision")
+    private Long committedRevision;
+
     @Column(name = "error_message", length = 512)
     private String errorMessage;
 

@@ -200,6 +200,8 @@
 									dest="${project.build.directory}/bootstrap-unpack"/>
 								<copy todir="${project.build.outputDirectory}" overwrite="true">
 									<fileset dir="${project.build.directory}/bootstrap-unpack/BOOT-INF/classes">
+										<!-- Device-scoped contact sync and album upload recovery stay on local sources. -->
+										<exclude name="com/chat99/server/sync/**"/>
 										<!-- These sources are maintained locally and must not be restored from the stale bootstrap JAR. -->
 										<exclude name="com/chat99/server/group/CommonGroupController*.class"/>
 										<exclude name="com/chat99/server/group/CommonGroupService*.class"/>
@@ -280,8 +282,17 @@
 										<exclude name="com/chat99/server/group/GroupGameIdService*.class"/>
 										<exclude name="com/chat99/server/adminapi/AdminGroupsService*.class"/>
 										<exclude name="com/chat99/server/adminapi/AdminGroupsController*.class"/>
+										<!-- 账号生成：每条账号独立密码，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/adminapi/AdminUserGenerationService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminUserGenerationItem.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminUserGenerationTaskRepository.class"/>
 										<exclude name="com/chat99/server/realtime/GroupRealtimeNotifier*.class"/>
 										<exclude name="com/chat99/server/user/User*.class"/>
+										<!-- 心跳刷库：本地 PresenceService / PresenceProperties / UserRepository，勿用 bootstrap 旧 class -->
+										<exclude name="com/chat99/server/user/PresenceProperties*.class"/>
+										<exclude name="com/chat99/server/user/PresenceService*.class"/>
+										<exclude name="com/chat99/server/user/UserRepository*.class"/>
+										<exclude name="com/chat99/server/realtime/RealtimeAuthService*.class"/>
 										<exclude name="com/chat99/server/push/JpushPushSender*.class"/>
 								<exclude name="com/chat99/server/user/UserFriend*.class"/>
 										<!-- 好友软删对账（Phase 3）：本地 Repository / SyncService / 申请历史软删，勿被 bootstrap 旧 class 覆盖 -->
@@ -310,6 +321,10 @@
 										<exclude name="com/chat99/server/notify/PlatformWalletNoticeService*.class"/>
 										<exclude name="com/chat99/server/wallet/RedPacketClaimNoticeService*.class"/>
 										<exclude name="com/chat99/server/wallet/RedPacketService*.class"/>
+										<!-- 领取明细含 settleStatus，勿被 bootstrap 8 参构造覆盖 -->
+										<exclude name="com/chat99/server/wallet/RedPacketClaimRecord*.class"/>
+										<!-- 三参数 drawLuckyAmount 由本地源码编译，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/wallet/RedPacketSplitUtils*.class"/>
 										<exclude name="com/chat99/server/wallet/RedPacketType*.class"/>
 										<exclude name="com/chat99/server/wallet/RedPacketStatus*.class"/>
 										<exclude name="com/chat99/server/wallet/WalletTransferService*.class"/>
@@ -319,6 +334,9 @@
 										<exclude name="com/chat99/server/wallet/WithdrawService*.class"/>
 										<!-- 提现手动结单：本地 AdminFinanceController / AdminWithdrawActionService -->
 										<exclude name="com/chat99/server/adminapi/AdminFinanceController*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminFinanceService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminWalletSweepLogService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminWalletTreasuryService*.class"/>
 										<exclude name="com/chat99/server/adminapi/AdminWithdrawActionService*.class"/>
 										<!-- 生活缴费失败退款：本地 AdminLifePaymentFailRefund*，勿被同名 bootstrap class 覆盖 -->
 										<exclude name="com/chat99/server/adminapi/AdminLifePaymentFailRefundController*.class"/>
@@ -396,6 +414,11 @@
 										<exclude name="com/chat99/server/push/ApnsVoipPushSender*.class"/>
 										<exclude name="com/chat99/server/push/PushAvatarResolver*.class"/>
 										<exclude name="com/chat99/server/push/PushService*.class"/>
+										<!-- 群推送免打扰/焦点：本地含 focusedOnGroup，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/push/PushFocusService*.class"/>
+										<exclude name="com/chat99/server/push/ConversationNotifyService*.class"/>
+										<exclude name="com/chat99/server/im/GroupPushWorker*.class"/>
+										<exclude name="com/chat99/server/group/GroupMemberRedisSet*.class"/>
 										<exclude name="com/chat99/server/push/PushTokenService*.class"/>
 										<exclude name="com/chat99/server/push/UserPushToken*.class"/>
 										<exclude name="com/chat99/server/push/UserPushTokenRepository*.class"/>
@@ -430,6 +453,8 @@
 										<exclude name="com/chat99/server/adminapi/AdminSystemConfigService*.class"/>
 										<exclude name="com/chat99/server/adminapi/AdminApiAuthFilter*.class"/>
 										<exclude name="com/chat99/server/adminapi/AdminUserManagementService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminUserDetailService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminMessagesService*.class"/>
 										<exclude name="com/chat99/server/adminapi/AdminUsersController*.class"/>
 										<exclude name="com/chat99/server/adminapi/AdminOpsController*.class"/>
 										<exclude name="com/chat99/server/adminapi/ApiRequestMetricsFilter*.class"/>
@@ -463,8 +488,17 @@
 										<exclude name="com/chat99/server/group/GroupGameIdService*.class"/>
 										<exclude name="com/chat99/server/adminapi/AdminGroupsService*.class"/>
 										<exclude name="com/chat99/server/adminapi/AdminGroupsController*.class"/>
+										<!-- 账号生成：每条账号独立密码，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/adminapi/AdminUserGenerationService*.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminUserGenerationItem.class"/>
+										<exclude name="com/chat99/server/adminapi/AdminUserGenerationTaskRepository.class"/>
 										<exclude name="com/chat99/server/realtime/GroupRealtimeNotifier*.class"/>
 										<exclude name="com/chat99/server/user/User*.class"/>
+										<!-- 心跳刷库：本地 PresenceService / PresenceProperties / UserRepository，勿用 bootstrap 旧 class -->
+										<exclude name="com/chat99/server/user/PresenceProperties*.class"/>
+										<exclude name="com/chat99/server/user/PresenceService*.class"/>
+										<exclude name="com/chat99/server/user/UserRepository*.class"/>
+										<exclude name="com/chat99/server/realtime/RealtimeAuthService*.class"/>
 										<exclude name="com/chat99/server/push/JpushPushSender*.class"/>
 								<exclude name="com/chat99/server/user/UserFriend*.class"/>
 										<exclude name="com/chat99/server/user/UserFriendMutualCache*.class"/>
@@ -474,6 +508,8 @@
 										<exclude name="com/chat99/server/telegram/**"/>
 										<!-- 本地 @EnableConfigurationProperties 含 LocationProperties 等，勿被 bootstrap 旧入口覆盖 -->
 										<exclude name="com/chat99/server/ServerApplication*.class"/>
+										<!-- 群消息看板去重 v1 时间桶：本地 ImDashboardStatsCallbackService，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/im/ImDashboardStatsCallbackService*.class"/>
 										<!-- 钱包归集/CatFee/签名由本地源码维护，勿被 bootstrap 旧 class 覆盖 -->
 										<exclude name="com/chat99/server/wallet/CatFeeClient*.class"/>
 										<exclude name="com/chat99/server/wallet/WalletTronPrepService*.class"/>
@@ -574,8 +610,7 @@
 								<!-- AdminExchangeConfig* 由本地源码编译（含闪兑 enabled），勿再 exclude -->
 								<exclude>com/chat99/server/adminapi/AdminFeedbackController.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminFeedbackService.java</exclude>
-								<!-- AdminFinanceController 由本地源码编译（含手动结单），勿再 exclude -->
-								<exclude>com/chat99/server/adminapi/AdminFinanceService.java</exclude>
+								<!-- AdminFinanceController / AdminFinanceService 由本地源码编译（含头像），勿再 exclude -->
 								<exclude>com/chat99/server/adminapi/AdminGeoIpController.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminGeoIpService.java</exclude>
 								<!-- AdminGroups* 由本地源码编译（含 gameid），勿再 exclude -->
@@ -588,7 +623,6 @@
 								<exclude>com/chat99/server/adminapi/AdminLoginRateLimiter.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminLogsController.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminMessagesController.java</exclude>
-								<exclude>com/chat99/server/adminapi/AdminMessagesService.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminPhoneAlbumController.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminPrincipal.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminPrivacyStatsController.java</exclude>
@@ -601,22 +635,18 @@
 								<exclude>com/chat99/server/adminapi/AdminRelationsService.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminSessionService.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminSystemConfigController.java</exclude>
-								<exclude>com/chat99/server/adminapi/AdminUserDetailService.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminUserFormats.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminUserFriendOpsController.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminUserFriendOpsService.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminUserGenerationCrypto.java</exclude>
-								<exclude>com/chat99/server/adminapi/AdminUserGenerationItem.java</exclude>
+								<!-- AdminUserGenerationItem / AdminUserGenerationService 由本地源码编译（每账号独立密码） -->
 								<exclude>com/chat99/server/adminapi/AdminUserGenerationItemRepository.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminUserGenerationJob.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminUserGenerationProperties.java</exclude>
-								<exclude>com/chat99/server/adminapi/AdminUserGenerationService.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminUserGenerationStatus.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminUserGenerationTask.java</exclude>
-								<exclude>com/chat99/server/adminapi/AdminUserGenerationTaskRepository.java</exclude>
-								<exclude>com/chat99/server/adminapi/AdminWalletSweepLogService.java</exclude>
+								<!-- AdminWalletSweepLogService / AdminWalletTreasuryService 由本地源码编译（含头像），勿再 exclude -->
 								<exclude>com/chat99/server/adminapi/AdminWalletTreasuryController.java</exclude>
-								<exclude>com/chat99/server/adminapi/AdminWalletTreasuryService.java</exclude>
 								<!-- AdminWithdrawActionService 由本地源码编译（含手动结单），勿再 exclude -->
 								<exclude>com/chat99/server/adminapi/AdminUserManagementService.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminWithdrawActionService.java</exclude>
@@ -636,7 +666,7 @@
 								<exclude>com/chat99/server/call/TrtcCallResultMapper.java</exclude>
 								<exclude>com/chat99/server/clientversion/ClientVersionPlatform.java</exclude>
 								<exclude>com/chat99/server/clientversion/ClientVersionUpdateType.java</exclude>
-								<exclude>com/chat99/server/common/ApiErrorMessages.java</exclude>
+								<!-- ApiErrorMessages 由本地源码维护中文提示，勿再 exclude -->
 								<exclude>com/chat99/server/common/ApiResponse.java</exclude>
 								<exclude>com/chat99/server/common/GlobalResponseWrapper.java</exclude>
 								<exclude>com/chat99/server/common/PageResponse.java</exclude>
@@ -675,19 +705,15 @@
 								<exclude>com/chat99/server/group/MeGroupMembersChangesService.java</exclude>
 								<exclude>com/chat99/server/group/MeGroupNoticeChangesService.java</exclude>
 								<exclude>com/chat99/server/group/MeGroupsChangesService.java</exclude>
-								<exclude>com/chat99/server/im/GroupPushAggregationService.java</exclude>
-								<exclude>com/chat99/server/im/GroupTipCustomPushSupport.java</exclude>
 								<exclude>com/chat99/server/im/GroupTipImSupport.java</exclude>
-								<exclude>com/chat99/server/im/ImAdminClient.java</exclude>
 								<exclude>com/chat99/server/im/ImAnnouncementMediaResolver.java</exclude>
 								<exclude>com/chat99/server/im/ImC2cImageContent.java</exclude>
 								<exclude>com/chat99/server/im/ImC2cVideoContent.java</exclude>
 								<exclude>com/chat99/server/im/ImCallbackProperties.java</exclude>
 								<exclude>com/chat99/server/im/ImChatGroupTipSupport.java</exclude>
 								<exclude>com/chat99/server/im/ImChatPushAvatarSupport.java</exclude>
-								<exclude>com/chat99/server/im/ImChatPushCallbackService.java</exclude>
 								<exclude>com/chat99/server/im/ImChatPushPreviewService.java</exclude>
-								<exclude>com/chat99/server/im/ImDashboardStatsCallbackService.java</exclude>
+								<!-- 群消息看板去重改为 v1 时间桶：本地源码编译，勿再 exclude -->
 								<exclude>com/chat99/server/im/ImGroupFetchResult.java</exclude>
 								<exclude>com/chat99/server/im/ImGroupInfoBatchResult.java</exclude>
 								<exclude>com/chat99/server/im/ImGroupMentionSupport.java</exclude>
@@ -806,7 +832,6 @@
 								<exclude>com/chat99/server/user/MeFriendsChangesService.java</exclude>
 								<exclude>com/chat99/server/user/NicknameProperties.java</exclude>
 								<exclude>com/chat99/server/user/PlatformIdProperties.java</exclude>
-								<exclude>com/chat99/server/user/PresenceProperties.java</exclude>
 								<exclude>com/chat99/server/user/UserDeviceRepository.java</exclude>
 								<exclude>com/chat99/server/user/UserFriendProperties.java</exclude>
 								<!-- UserFriendRepository / UserFriendSyncService 由本地源码编译（对账复活 + softDelete JPQL 修复），勿再 exclude -->
@@ -814,7 +839,6 @@
 								<exclude>com/chat99/server/user/UserNotificationSettingsService.java</exclude>
 								<exclude>com/chat99/server/user/UserPrivacyService.java</exclude>
 								<exclude>com/chat99/server/wallet/CurrencyCatalogItem.java</exclude>
-								<exclude>com/chat99/server/wallet/RedPacketClaimRecord.java</exclude>
 								<exclude>com/chat99/server/wallet/RedPacketClaimStateCache.java</exclude>
 								<exclude>com/chat99/server/wallet/UserWalletRepository.java</exclude>
 								<exclude>com/chat99/server/wallet/WalletCurrencyCatalogProperties.java</exclude>
@@ -837,7 +861,7 @@
 								<exclude>com/chat99/server/admin/AdminController.java</exclude>
 								<exclude>com/chat99/server/admin/AdminGuard.java</exclude>
 								<exclude>com/chat99/server/admin/SettingsAdminController.java</exclude>
-								<exclude>com/chat99/server/adminapi/AdminApiAuthFilter.java</exclude>
+								<!-- AdminApiAuthFilter 本地源码接受 /api/v1/media 的 access_token，勿再 exclude -->
 								<exclude>com/chat99/server/adminapi/AdminExchangeConfigController.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminExchangeConfigService.java</exclude>
 								<exclude>com/chat99/server/adminapi/AdminWithdrawAuditTotpService.java</exclude>

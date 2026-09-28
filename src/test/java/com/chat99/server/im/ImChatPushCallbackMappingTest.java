@@ -1,9 +1,11 @@
 package com.chat99.server.im;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,8 +31,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ImChatPushCallbackMappingTest {
 
     @Mock PushConfigService pushConfig;
@@ -50,6 +55,7 @@ class ImChatPushCallbackMappingTest {
     @Mock ImChatPushPreviewService pushPreviewService;
     @Mock ImChatPushAvatarSupport pushAvatarSupport;
     @Mock ImUserIdService imUserIdService;
+    @Mock GroupPushStream groupPushStream;
 
     ImChatPushCallbackService service;
 
@@ -65,7 +71,8 @@ class ImChatPushCallbackMappingTest {
             systemNotifyProperties, walletNoticeProperties, callbackVerifier, voipCallPushTrigger,
             pushAvatarResolver, conversationNotifyService, groupMemberCacheService,
             groupPushAggregationService, pushFocusService, callWebhookService,
-            new ObjectMapper(), pushPreviewService, pushAvatarSupport, imUserIdService);
+            new ObjectMapper(), pushPreviewService, pushAvatarSupport, imUserIdService,
+            groupPushStream);
 
         when(pushConfig.isImCallbackEnabled()).thenReturn(true);
         when(pushConfig.isChatPushEnabled()).thenReturn(true);
@@ -73,14 +80,8 @@ class ImChatPushCallbackMappingTest {
         when(pushService.enabled()).thenReturn(true);
         when(settings.getInt(eq(AppSettingService.IM_SDK_APP_ID), eq(0))).thenReturn(123);
         when(pushPreviewService.shouldSkipMessage(any())).thenReturn(false);
-        when(imAdmin.getGroupBaseInfo(anyString())).thenReturn(Optional.empty());
-        when(pushAvatarSupport.resolveAvatarUrl(any(), any(), any())).thenReturn(null);
-        when(userRepository.findByUserId(anyString())).thenReturn(Optional.empty());
+        when(dedupStore.markIfNew(anyString())).thenReturn(true);
         when(imUserIdService.toBusinessForDisplay("fromBiz")).thenReturn("fromBiz");
-        when(imUserIdService.toBusinessForDisplayBatch(anyList()))
-            .thenReturn(Map.of("q14gkm5swv", "q14gkm5swv", "fromBiz", "fromBiz"));
-        when(groupMemberCacheService.memberUserIds("g1")).thenReturn(List.of("q14gkm5swv", "fromBiz"));
-        when(groupPushAggregationService.enqueue(any(), anyList())).thenReturn(1);
     }
 
     @Test
@@ -100,16 +101,65 @@ class ImChatPushCallbackMappingTest {
 
         service.processAfterSend("123", "Group.CallbackAfterSendMsg", body);
 
-        ArgumentCaptor<GroupPushAggregationService.GroupMessageEvent> eventCaptor =
-            ArgumentCaptor.forClass(GroupPushAggregationService.GroupMessageEvent.class);
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<String>> membersCaptor = ArgumentCaptor.forClass(List.class);
-        verify(groupPushAggregationService).enqueue(eventCaptor.capture(), membersCaptor.capture());
+        verify(groupPushStream).enqueue(eq(false), any());
+        verify(imAdmin, never()).getGroupBaseInfo(anyString());
+        verify(groupMemberCacheService, never()).memberUserIds(anyString());
+        verify(groupPushAggregationService, never()).enqueue(any(), anyList());
+    }
 
-        GroupPushAggregationService.GroupMessageEvent event = eventCaptor.getValue();
-        org.assertj.core.api.Assertions.assertThat(event.fromAccount()).isEqualTo("fromBiz");
-        org.assertj.core.api.Assertions.assertThat(membersCaptor.getValue())
-            .containsExactly("q14gkm5swv", "fromBiz");
-        org.assertj.core.api.Assertions.assertThat(event.mentionedUserIds()).isEqualTo(Set.of());
+    @Test
+    void duplicateGroupAfterSendDoesNotEnqueue() {
+        when(dedupStore.markIfNew(anyString())).thenReturn(false);
+        String body = """
+            {
+              "CallbackCommand": "Group.CallbackAfterSendMsg",
+              "GroupId": "g1",
+              "From_Account": "fromBiz",
+              "MsgId": "m1",
+              "OnlineOnlyFlag": 0,
+              "SendMsgResult": 0,
+              "MsgBody": [{"MsgType":"TIMTextElem","MsgContent":{"Text":"hi"}}]
+            }
+            """;
+        service.processAfterSend("123", "Group.CallbackAfterSendMsg", body);
+        verify(groupPushStream, never()).enqueue(anyBoolean(), any());
+    }
+
+    @Test
+    void mentionEnqueuesPriorityStream() {
+        String body = """
+            {
+              "CallbackCommand": "Group.CallbackAfterSendMsg",
+              "GroupId": "g1",
+              "From_Account": "fromBiz",
+              "MsgId": "m2",
+              "OnlineOnlyFlag": 0,
+              "SendMsgResult": 0,
+              "MsgBody": [{"MsgType":"TIMTextElem","MsgContent":{"Text":"hi"}}],
+              "GroupAtInfo": [{"GroupAt_Account":"user123"}]
+            }
+            """;
+        when(imUserIdService.toBusinessForDisplay("user123")).thenReturn("user123");
+        service.processAfterSend("123", "Group.CallbackAfterSendMsg", body);
+        verify(groupPushStream).enqueue(eq(true), any());
+    }
+
+    @Test
+    void fullStreamThrows() {
+        org.mockito.Mockito.doThrow(new GroupPushStreamFullException("push:group:after-send"))
+            .when(groupPushStream).enqueue(eq(false), any());
+        String body = """
+            {
+              "CallbackCommand": "Group.CallbackAfterSendMsg",
+              "GroupId": "g1",
+              "From_Account": "fromBiz",
+              "MsgId": "m3",
+              "OnlineOnlyFlag": 0,
+              "SendMsgResult": 0,
+              "MsgBody": [{"MsgType":"TIMTextElem","MsgContent":{"Text":"hi"}}]
+            }
+            """;
+        org.junit.jupiter.api.Assertions.assertThrows(GroupPushStreamFullException.class,
+            () -> service.processAfterSend("123", "Group.CallbackAfterSendMsg", body));
     }
 }

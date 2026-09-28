@@ -3,6 +3,8 @@ package com.chat99.server.adminapi;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.chat99.server.common.PhoneUtils;
+import com.chat99.server.group.GroupProfile;
+import com.chat99.server.group.GroupProfileRepository;
 import com.chat99.server.im.ImAdminClient;
 import com.chat99.server.im.ImUserIdService;
 import com.chat99.server.notify.PlatformWalletNoticeProperties;
@@ -26,6 +28,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -60,6 +63,7 @@ public class AdminUserDetailService {
     private final SystemNotifyProperties systemNotifyProps;
     private final PlatformWalletNoticeProperties walletNoticeProps;
     private final DeviceModelDisplayService modelDisplay;
+    private final GroupProfileRepository groupProfileRepository;
 
     public AdminUserDetailService(AdminUserManagementService users,
                                   UserRepository userRepository,
@@ -76,7 +80,8 @@ public class AdminUserDetailService {
                                   AdminAuditService auditService,
                                   SystemNotifyProperties systemNotifyProps,
                                   PlatformWalletNoticeProperties walletNoticeProps,
-                                  DeviceModelDisplayService modelDisplay) {
+                                  DeviceModelDisplayService modelDisplay,
+                                  GroupProfileRepository groupProfileRepository) {
         this.users = users;
         this.userRepository = userRepository;
         this.loginLogRepository = loginLogRepository;
@@ -93,6 +98,7 @@ public class AdminUserDetailService {
         this.systemNotifyProps = systemNotifyProps;
         this.walletNoticeProps = walletNoticeProps;
         this.modelDisplay = modelDisplay;
+        this.groupProfileRepository = groupProfileRepository;
     }
 
     public UserDetailResponse getDetail(String userUid) {
@@ -138,9 +144,7 @@ public class AdminUserDetailService {
         int safeSize = clampPageSize(pageSize);
         int safePage = Math.max(page, 1);
         int offset = (safePage - 1) * safeSize;
-        List<GroupItem> items = imAdmin.listJoinedGroups(imAccount, offset, safeSize).stream()
-            .map(this::toGroupItem)
-            .toList();
+        List<GroupItem> items = toGroupItems(imAdmin.listJoinedGroups(imAccount, offset, safeSize));
         return new PagedGroupsResponse(items, total, safePage, safeSize, offset + items.size() < total);
     }
 
@@ -338,12 +342,12 @@ public class AdminUserDetailService {
         }
         Instant added = row.getAddedAt() != null ? row.getAddedAt() : row.getImAddTime();
         Long addTimeSec = added != null ? added.getEpochSecond() : null;
-        return new FriendItem(row.getFriendUserId(), nick, addTimeSec, row.getFriendAvatarUrl());
+        return new FriendItem(row.getFriendUserId(), nick, addTimeSec, row.getFriendAvatarUrl(), blankToNull(row.getRemark()));
     }
 
     private List<GroupItem> loadGroups(String userId, int offset, int limit) {
         String imAccount = imUserIdService.toIm(userId);
-        return imAdmin.listJoinedGroups(imAccount, offset, limit).stream().map(this::toGroupItem).toList();
+        return toGroupItems(imAdmin.listJoinedGroups(imAccount, offset, limit));
     }
 
     private List<DeviceItem> loadDevices(String userId, int limit) {
@@ -358,7 +362,45 @@ public class AdminUserDetailService {
             }
             merged.putIfAbsent(log.getDeviceId(), logToDeviceItem(userId, log));
         }
-        return merged.values().stream().limit(limit).toList();
+        return dedupeDevices(merged.values()).stream().limit(limit).toList();
+    }
+
+    /** 同一平台、同一机型只留最近一次登录。客户端每次换设备号时，否则会把同一台手机列很多行。 */
+    private List<DeviceItem> dedupeDevices(java.util.Collection<DeviceItem> items) {
+        Map<String, DeviceItem> byHardware = new LinkedHashMap<>();
+        for (DeviceItem item : items) {
+            String key = deviceHardwareKey(item);
+            DeviceItem previous = byHardware.get(key);
+            byHardware.put(key, previous == null ? item : preferDevice(previous, item));
+        }
+        return byHardware.values().stream()
+            .sorted(Comparator.comparing((DeviceItem item) -> item.lastLoginTime() == null ? "" : item.lastLoginTime()).reversed())
+            .toList();
+    }
+
+    private static String deviceHardwareKey(DeviceItem item) {
+        String platform = item.platform() == null ? "" : item.platform().trim().toLowerCase();
+        String model = item.model() == null ? "" : item.model().trim().toLowerCase();
+        return platform + "|" + model;
+    }
+
+    private static DeviceItem preferDevice(DeviceItem left, DeviceItem right) {
+        boolean leftNewer = compareLoginTime(left, right) >= 0;
+        DeviceItem newer = leftNewer ? left : right;
+        DeviceItem older = leftNewer ? right : left;
+        int trusted = Integer.valueOf(1).equals(newer.isTrusted()) || Integer.valueOf(1).equals(older.isTrusted()) ? 1 : 0;
+        if (trusted == (newer.isTrusted() == null ? 0 : newer.isTrusted())) {
+            return newer;
+        }
+        return new DeviceItem(
+            newer.deviceId(), newer.deviceType(), newer.deviceTokenMasked(), trusted,
+            newer.lastLoginTime(), newer.platform(), newer.model());
+    }
+
+    private static int compareLoginTime(DeviceItem left, DeviceItem right) {
+        String a = left.lastLoginTime() == null ? "" : left.lastLoginTime();
+        String b = right.lastLoginTime() == null ? "" : right.lastLoginTime();
+        return a.compareTo(b);
     }
 
     private SameIpBlock loadSameIp(String userId, int itemLimit) {
@@ -466,7 +508,7 @@ public class AdminUserDetailService {
         if (nick == null || nick.isBlank()) {
             nick = f.friendUid();
         }
-        return new FriendItem(f.friendUid(), nick, f.addTimeSec(), f.avatarUrl());
+        return new FriendItem(f.friendUid(), nick, f.addTimeSec(), f.avatarUrl(), blankToNull(f.remark()));
     }
 
     private String knownSystemNickname(String friendUid) {
@@ -482,9 +524,57 @@ public class AdminUserDetailService {
         return null;
     }
 
-    private GroupItem toGroupItem(ImAdminClient.JoinedGroupEntry g) {
-        return new GroupItem(
-            g.groupId(), g.groupName(), g.groupType(), g.joinTimeSec(), g.memberCount(), g.faceUrl());
+    private List<GroupItem> toGroupItems(List<ImAdminClient.JoinedGroupEntry> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        List<String> groupIds = rows.stream()
+            .map(ImAdminClient.JoinedGroupEntry::groupId)
+            .filter(id -> id != null && !id.isBlank())
+            .distinct()
+            .toList();
+        Map<String, String> ownerByGroup = new HashMap<>();
+        Map<String, String> avatarByGroup = new HashMap<>();
+        if (!groupIds.isEmpty()) {
+            for (GroupProfile profile : groupProfileRepository.findAllById(groupIds)) {
+                String ownerId = blankToNull(profile.getOwnerUserId());
+                if (ownerId != null) {
+                    ownerByGroup.put(profile.getGroupId(), ownerId);
+                }
+                String avatar = blankToNull(profile.getAvatarUrl());
+                if (avatar != null) {
+                    avatarByGroup.put(profile.getGroupId(), avatar);
+                }
+            }
+        }
+        List<String> missing = groupIds.stream().filter(id -> !ownerByGroup.containsKey(id)).toList();
+        if (!missing.isEmpty()) {
+            imAdmin.fetchGroupAdminInfoMap(missing).forEach((groupId, info) -> {
+                String ownerId = info == null ? null : blankToNull(info.ownerAccount());
+                if (ownerId != null) {
+                    ownerByGroup.put(groupId, ownerId);
+                }
+            });
+        }
+        Map<String, String> nicknames = new HashMap<>();
+        if (!ownerByGroup.isEmpty()) {
+            for (User user : userRepository.findByUserIdIn(ownerByGroup.values())) {
+                nicknames.put(user.getUserId(), blankToNull(user.getNickname()));
+            }
+        }
+        return rows.stream().map(g -> {
+            String ownerId = ownerByGroup.get(g.groupId());
+            String nickname = ownerId == null ? null : nicknames.get(ownerId);
+            if (nickname == null) {
+                nickname = knownSystemNickname(ownerId);
+            }
+            String avatar = avatarByGroup.get(g.groupId());
+            if (avatar == null) {
+                avatar = blankToNull(g.faceUrl());
+            }
+            return new GroupItem(
+                g.groupId(), g.groupName(), g.groupType(), g.joinTimeSec(), g.memberCount(), avatar, nickname);
+        }).toList();
     }
 
     private DeviceItem deviceFromUserDevice(UserDevice d) {
@@ -499,16 +589,15 @@ public class AdminUserDetailService {
     }
 
     private DeviceItem logToDeviceItem(String userId, LoginLog log) {
-        String rawModel = deviceRepository.findByUserIdAndDeviceId(userId, log.getDeviceId())
-            .map(UserDevice::getModel)
-            .filter(m -> m != null && !m.isBlank())
-            .orElse(null);
+        UserDevice device = deviceRepository.findByUserIdAndDeviceId(userId, log.getDeviceId()).orElse(null);
+        String rawModel = device == null || device.getModel() == null || device.getModel().isBlank()
+            ? null : device.getModel();
         String model = modelDisplay.display(log.getClientPlatform(), rawModel);
         return new DeviceItem(
             log.getDeviceId(),
             AdminUserFormats.mapDeviceType(log.getClientPlatform()),
             maskToken(log.getDeviceId()),
-            log.isSuccess() ? 1 : 0,
+            device != null && device.isTrusted() ? 1 : 0,
             AdminUserFormats.formatTime(log.getCreatedAt()),
             log.getClientPlatform(),
             model);
@@ -528,6 +617,13 @@ public class AdminUserDetailService {
 
     private static int clampPageSize(int pageSize) {
         return Math.min(Math.max(pageSize, 1), 100);
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private static String stripPlus(String phone) {
@@ -567,11 +663,12 @@ public class AdminUserDetailService {
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public record FriendItem(String friendUid, String nickname, Long addTime, String friendAvatarFileName) {}
+    public record FriendItem(String friendUid, String nickname, Long addTime, String friendAvatarFileName, String remark) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record GroupItem(
-        String groupId, String groupName, String groupType, Long joinTime, Integer memberCount, String faceUrl) {}
+        String groupId, String groupName, String groupType, Long joinTime, Integer memberCount, String faceUrl,
+        String ownerNickname) {}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public record DeviceItem(

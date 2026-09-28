@@ -47,6 +47,11 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @Query("UPDATE User u SET u.lastActiveAt = :ts WHERE u.userId = :userId")
     int touchLastActive(@Param("userId") String userId, @Param("ts") Instant ts);
 
+    @Modifying
+    @Transactional
+    @Query("UPDATE User u SET u.lastActiveAt = :ts WHERE u.userId IN :userIds")
+    int touchLastActiveBatch(@Param("userIds") Collection<String> userIds, @Param("ts") Instant ts);
+
     Page<User> findByStatusAndIdGreaterThanOrderByIdAsc(int status, long id, Pageable pageable);
 
     List<User> findByCreatedAtGreaterThanEqual(Instant createdAt);

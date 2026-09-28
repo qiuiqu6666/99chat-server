@@ -50,6 +50,7 @@ public class GroupProjectionService {
     private final ObjectProvider<ImRestQueuePublisher> restQueue;
     private final ObjectProvider<UserOwnedGroupService> ownedGroupService;
     private final ObjectProvider<MeGroupsListCache> meGroupsListCache;
+    private final ObjectProvider<GroupMemberRedisSet> memberRedisSet;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -61,7 +62,8 @@ public class GroupProjectionService {
                                   GroupAvatarDefaults avatarDefaults,
                                   ObjectProvider<ImRestQueuePublisher> restQueue,
                                   ObjectProvider<UserOwnedGroupService> ownedGroupService,
-                                  ObjectProvider<MeGroupsListCache> meGroupsListCache) {
+                                  ObjectProvider<MeGroupsListCache> meGroupsListCache,
+                                  ObjectProvider<GroupMemberRedisSet> memberRedisSet) {
         this.profileRepository = profileRepository;
         this.memberRepository = memberRepository;
         this.changeEventRepository = changeEventRepository;
@@ -70,6 +72,7 @@ public class GroupProjectionService {
         this.restQueue = restQueue;
         this.ownedGroupService = ownedGroupService;
         this.meGroupsListCache = meGroupsListCache;
+        this.memberRedisSet = memberRedisSet;
     }
 
     @Transactional
@@ -573,6 +576,7 @@ public class GroupProjectionService {
             memberRepository.bulkSoftDeleteByGroupIdAndUserId(groupId, userId.trim());
             invalidateMeGroupsUser(userId.trim());
         }
+        removeMembersFromRedis(groupId, userIds);
         refreshMemberCount(groupId);
     }
 
@@ -785,6 +789,7 @@ public class GroupProjectionService {
         saveProfileAndFlush(profile);
         // 群成员行软删：deleted=1 + item_version++（tombstone 由 GroupChangeEmitter 在 IM 回调路径写）
         memberRepository.bulkSoftDeleteByGroupId(gid);
+        deleteMemberRedis(gid);
         invalidateMeGroupsUsers(memberUserIds);
     }
 
@@ -900,9 +905,7 @@ public class GroupProjectionService {
         if (row.groupType() != null && !row.groupType().isBlank()) {
             profile.setGroupType(row.groupType());
         }
-        if (row.groupName() != null) {
-            profile.setGroupName(row.groupName());
-        }
+        applyGroupNameIfAbsent(profile, row.groupName());
         if (row.ownerUserId() != null) {
             profile.setOwnerUserId(row.ownerUserId());
         }
@@ -931,7 +934,7 @@ public class GroupProjectionService {
             return;
         }
         profile.setGroupType(info.type() == null ? "" : info.type());
-        profile.setGroupName(info.name() == null ? "" : info.name());
+        applyGroupNameIfAbsent(profile, info.name());
         profile.setOwnerUserId(info.ownerAccount());
         if (info.memberNum() != null) {
             profile.setMemberCount(info.memberNum());
@@ -1076,9 +1079,48 @@ public class GroupProjectionService {
             }
             memberRepository.save(existing);
             invalidateMeGroupsUser(existing.getUserId());
+            syncMemberRedis(existing);
             return;
         }
         invalidateMeGroupsUser(member.getUserId());
+        syncMemberRedis(member);
+    }
+
+    private void removeMembersFromRedis(String groupId, List<String> userIds) {
+        if (memberRedisSet == null || groupId == null || groupId.isBlank() || userIds == null || userIds.isEmpty()) {
+            return;
+        }
+        GroupMemberRedisSet set = memberRedisSet.getIfAvailable();
+        if (set == null) {
+            return;
+        }
+        set.removeAll(groupId, userIds);
+    }
+
+    private void deleteMemberRedis(String groupId) {
+        if (memberRedisSet == null || groupId == null || groupId.isBlank()) {
+            return;
+        }
+        GroupMemberRedisSet set = memberRedisSet.getIfAvailable();
+        if (set == null) {
+            return;
+        }
+        set.delete(groupId);
+    }
+
+    private void syncMemberRedis(GroupMember member) {
+        if (memberRedisSet == null) {
+            return;
+        }
+        GroupMemberRedisSet set = memberRedisSet.getIfAvailable();
+        if (set == null || member == null) {
+            return;
+        }
+        if (member.isDeleted()) {
+            set.remove(member.getGroupId(), member.getUserId());
+        } else {
+            set.add(member.getGroupId(), member.getUserId());
+        }
     }
 
     private void invalidateMeGroupsUser(String userId) {
@@ -1181,9 +1223,7 @@ public class GroupProjectionService {
         if (source.getGroupType() != null && !source.getGroupType().isBlank()) {
             target.setGroupType(source.getGroupType());
         }
-        if (source.getGroupName() != null) {
-            target.setGroupName(source.getGroupName());
-        }
+        applyGroupNameIfAbsent(target, source.getGroupName());
         if (source.getOwnerUserId() != null) {
             target.setOwnerUserId(source.getOwnerUserId());
         }
@@ -1249,6 +1289,21 @@ public class GroupProjectionService {
             profile.setMemberCount(memberCount);
             saveProfile(profile);
         });
+    }
+
+    /**
+     * 已有群名以本地为准。IM 回填可能带着改名前的查询结果，不能把刚改完的群名盖回去。
+     * IM 上的后续改名仍走 {@link #onGroupNameChanged}。
+     */
+    private static void applyGroupNameIfAbsent(GroupProfile profile, String incoming) {
+        if (incoming == null || incoming.isBlank()) {
+            return;
+        }
+        String current = profile.getGroupName();
+        if (current != null && !current.isBlank()) {
+            return;
+        }
+        profile.setGroupName(incoming);
     }
 
     private static Instant joinInstant(long joinTimeSec) {
