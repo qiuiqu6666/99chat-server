@@ -49,6 +49,8 @@ public class ImMessageWebhookController {
     private final ChatAttachmentImBindService attachmentImBindService;
     private final ImWebhookDispatchProperties webhookDispatchProperties;
     private final AsyncTaskExecutor webhookExecutor;
+    @Autowired
+    private com.chat99.server.wallet.WalletCardDelivery walletCardDelivery;
 
     public ImMessageWebhookController(ImCallbackVerifier callbackVerifier, ImDashboardStatsCallbackService dashboardStatsCallbackService, ImChatPushCallbackService chatPushCallbackService, ImC2cBeforeSendMsgCallbackService beforeSendMsgCallbackService, ImGroupBeforeSendMsgCallbackService groupBeforeSendMsgCallbackService, ImGroupBeforeCreateCallbackService beforeCreateGroupCallbackService, ImGroupBeforeJoinCallbackService beforeJoinGroupCallbackService, ImGroupRealtimeCallbackService groupRealtimeCallbackService, ImGroupMessageMonitorService groupMessageMonitorService, MessageArchiveProperties archiveProperties, @Autowired(required=false) ImMessageArchiveProducer archiveProducer, @Autowired(required=false) ImMessageRecallService recallService, ChatAttachmentImBindService attachmentImBindService, ImWebhookDispatchProperties webhookDispatchProperties, @Qualifier(ImWebhookExecutorConfig.BEAN_NAME) AsyncTaskExecutor webhookExecutor) {
         this.callbackVerifier = callbackVerifier;
@@ -112,6 +114,7 @@ public class ImMessageWebhookController {
             return before;
         }
         this.attachmentImBindService.handleAfterSendRaw(body);
+        if (this.walletCardDelivery != null) this.walletCardDelivery.receipt(cmd, body);
         if (this.archiveProperties.enabled() && this.recallService != null && this.recallService.isRecallCommand(cmd)) {
             this.recallService.syncRecall(sdkAppId, cmd, token, sign, requestTime, body);
             if (this.archiveProducer != null) {

@@ -1,137 +1,56 @@
 package com.chat99.server.wallet;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 import com.chat99.server.im.ImUserIdService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Duration;
-import java.util.Map;
-import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.*;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
-@ExtendWith(MockitoExtension.class)
 class WalletOrderCardSendGuardServiceTest {
+    final ObjectMapper json = new ObjectMapper();
+    final WalletRedPacketRepository packets = mock(WalletRedPacketRepository.class);
+    final WalletTransferRepository transfers = mock(WalletTransferRepository.class);
+    final StringRedisTemplate redis = mock(StringRedisTemplate.class);
+    final WalletOrderCardSendGuardService guard = new WalletOrderCardSendGuardService(
+        new WalletOrderCardGuardProperties(false, false, true, 90, List.of("administrator")),
+        packets, transfers, mock(ImUserIdService.class), redis, json);
 
-    @Mock WalletRedPacketRepository redPacketRepository;
-    @Mock WalletTransferRepository transferRepository;
-    @Mock ImUserIdService imUserIdService;
-    @Mock StringRedisTemplate redis;
-    @Mock ValueOperations<String, String> valueOps;
-
-    private WalletOrderCardSendGuardService service;
-
-    @BeforeEach
-    void setUp() {
-        lenient().when(redis.opsForValue()).thenReturn(valueOps);
-        var props = new WalletOrderCardGuardProperties(true, true, false, 90, java.util.List.of("administrator"));
-        service = new WalletOrderCardSendGuardService(
-            props, redPacketRepository, transferRepository, imUserIdService, redis, new ObjectMapper());
+    Map<String, Object> body(String data) {
+        return Map.of("From_Account", "administrator", "GroupId", "g1", "MsgBody", List.of(
+            Map.of("MsgType", "TIMCustomElem", "MsgContent", Map.of("Data", data))));
     }
-
-    @Test
-    void rejectsUnknownOrder() {
-        when(imUserIdService.findBusinessUserId("u1")).thenReturn(Optional.of("u1"));
-        when(redPacketRepository.findById(999L)).thenReturn(Optional.empty());
-
-        Optional<String> reject = service.evaluate(groupBody("u1", "g1", cardJson(999, "u1", 100, "99")));
-        assertThat(reject).contains("WALLET_CARD_NOT_FOUND");
-        verify(valueOps, never()).setIfAbsent(anyString(), anyString(), any(Duration.class));
+    @ParameterizedTest @ValueSource(strings = {
+        "{\"type\":\"wallet_transfer\",\"orderId\":\"9999999\"}",
+        "{\"type\":\"wallet_red_packet\",\"orderId\":\"1\",\"amount\":1000000}",
+        "{\"type\":\"wallet_group_transfer\",\"serverManagedCard\":true}",
+        "{\"businessID\":\"wallet_order\"}",
+        "{\"customType\":\"text\",\"type\":\"wallet_red_packet\"}",
+        "{\"customType\":\"wallet_transfer\",\"type\":\"text\"}",
+        "{\"type\":\" WALLET_RED_PACKET \"}",
+        "{\"businessId\":\"wallet_order\",\"clientOrderId\":\"copied-order\"}"
+    })
+    void rejectsClientFinancialCardsWithoutDatabaseOrRedis(String payload) {
+        assertThat(guard.isEnabled()).isTrue();
+        assertThat(guard.evaluate(body(payload))).contains("WALLET_CARD_SERVER_MANAGED");
+        verifyNoInteractions(packets, transfers, redis);
     }
-
-    @Test
-    void rejectsSenderMismatch() {
-        when(imUserIdService.findBusinessUserId("attacker")).thenReturn(Optional.of("attacker"));
-        WalletRedPacket p = packet(368, "owner", "g1", 188800L, WalletCurrency.PLATFORM);
-        when(redPacketRepository.findById(368L)).thenReturn(Optional.of(p));
-
-        Optional<String> reject = service.evaluate(groupBody("attacker", "g1", cardJson(368, "owner", 188800, "99")));
-        assertThat(reject).contains("WALLET_CARD_SENDER_MISMATCH");
+    @Test void doubleEncodedAndMultiElementCardsCannotBypassGuard() throws Exception {
+        String payload = json.writeValueAsString("{\"type\":\"wallet_red_packet\"}");
+        assertThat(guard.evaluate(body(payload))).isPresent();
+        var mixed = new HashMap<>(body("{}"));
+        mixed.put("MsgBody", List.of(Map.of("MsgType", "TIMTextElem", "MsgContent", Map.of("Text", "hello")),
+            ((List<?>) body(payload).get("MsgBody")).get(0)));
+        assertThat(guard.evaluate(mixed)).isPresent();
     }
-
-    @Test
-    void rejectsWrongGroup() {
-        when(imUserIdService.findBusinessUserId("owner")).thenReturn(Optional.of("owner"));
-        WalletRedPacket p = packet(368, "owner", "g1", 188800L, WalletCurrency.PLATFORM);
-        when(redPacketRepository.findById(368L)).thenReturn(Optional.of(p));
-
-        Optional<String> reject = service.evaluate(groupBody("owner", "other-group", cardJson(368, "owner", 188800, "99")));
-        assertThat(reject).contains("WALLET_CARD_CONV_MISMATCH");
-    }
-
-    @Test
-    void rejectsAmountTamper() {
-        when(imUserIdService.findBusinessUserId("owner")).thenReturn(Optional.of("owner"));
-        WalletRedPacket p = packet(368, "owner", "g1", 188800L, WalletCurrency.PLATFORM);
-        when(redPacketRepository.findById(368L)).thenReturn(Optional.of(p));
-
-        Optional<String> reject = service.evaluate(groupBody("owner", "g1", cardJson(368, "owner", 1, "99")));
-        assertThat(reject).contains("WALLET_CARD_PAYLOAD_MISMATCH");
-    }
-
-    @Test
-    void allowsFirstSendThenRejectsDup() {
-        when(imUserIdService.findBusinessUserId("owner")).thenReturn(Optional.of("owner"));
-        WalletRedPacket p = packet(368, "owner", "g1", 188800L, WalletCurrency.PLATFORM);
-        when(redPacketRepository.findById(368L)).thenReturn(Optional.of(p));
-        when(valueOps.setIfAbsent(eq("im:wallet-card:group:g1:rp:368"), eq("1"), any(Duration.class)))
-            .thenReturn(true)
-            .thenReturn(false);
-
-        Map<String, Object> body = groupBody("owner", "g1", cardJson(368, "owner", 188800, "99"));
-        assertThat(service.evaluate(body)).isEmpty();
-        assertThat(service.evaluate(body)).contains("WALLET_CARD_DUP");
-    }
-
-    @Test
-    void allowlistedAdminBypasses() {
-        when(imUserIdService.isSpecialImAccount("administrator")).thenReturn(true);
-
-        Optional<String> reject = service.evaluate(
-            groupBody("administrator", "g1", cardJson(368, "x", 1, "99")));
-        assertThat(reject).isEmpty();
-        verify(redPacketRepository, never()).findById(any());
-    }
-
-    private static WalletRedPacket packet(long id, String sender, String groupId, long amount, WalletCurrency c) {
-        WalletRedPacket p = new WalletRedPacket();
-        p.setId(id);
-        p.setSenderUserId(sender);
-        p.setGroupId(groupId);
-        p.setConversationType("GROUP");
-        p.setTotalAmount(amount);
-        p.setCurrency(c);
-        p.setPacketType(RedPacketType.LUCKY_GROUP);
-        p.setStatus(RedPacketStatus.ACTIVE);
-        return p;
-    }
-
-    private static Map<String, Object> groupBody(String from, String groupId, String dataJson) {
-        return Map.of(
-            "From_Account", from,
-            "GroupId", groupId,
-            "MsgBody", java.util.List.of(Map.of(
-                "MsgType", "TIMCustomElem",
-                "MsgContent", Map.of("Data", dataJson)
-            ))
-        );
-    }
-
-    private static String cardJson(long orderId, String sender, long amount, String currency) {
-        return """
-            {"businessID":"wallet_order","type":"wallet_red_packet","orderId":%d,"senderUserId":"%s","amount":%d,"currency":"%s"}
-            """.formatted(orderId, sender, amount, currency).trim();
+    @Test void ordinaryMessagesAndClaimNoticesAreUnaffected() {
+        assertThat(guard.evaluate(body("{\"type\":\"contact_card\"}"))).isEmpty();
+        assertThat(guard.evaluate(body("{\"businessID\":\"red_packet_claim_notice\"}"))).isEmpty();
+        assertThat(guard.evaluate(body("not-json"))).isEmpty();
+        assertThat(guard.evaluate(Map.of("MsgBody", List.of(Map.of("MsgType", "TIMTextElem",
+            "MsgContent", Map.of("Text", "wallet_red_packet")))))).isEmpty();
     }
 }

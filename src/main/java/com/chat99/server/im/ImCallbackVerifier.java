@@ -27,7 +27,7 @@ public class ImCallbackVerifier {
     public void verifyQueryToken(String token) {
         String expected = this.pushConfig.getCallbackToken();
         if (expected == null || expected.isBlank()) {
-            return;
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "IM_CALLBACK_AUTH_NOT_CONFIGURED");
         }
         if (token == null || !ImCallbackVerifier.constantTimeEquals(expected, token)) {
             throw new ResponseStatusException((HttpStatusCode)HttpStatus.FORBIDDEN, "FORBIDDEN");
@@ -38,7 +38,7 @@ public class ImCallbackVerifier {
         long ts;
         String expectedToken = this.pushConfig.getCallbackToken();
         if (expectedToken == null || expectedToken.isBlank()) {
-            return;
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "IM_CALLBACK_AUTH_NOT_CONFIGURED");
         }
         if (sign == null || sign.isBlank() || requestTime == null || requestTime.isBlank()) {
             throw new ResponseStatusException((HttpStatusCode)HttpStatus.FORBIDDEN, "FORBIDDEN");

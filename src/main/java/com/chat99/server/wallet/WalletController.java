@@ -469,30 +469,13 @@ public class WalletController {
 
     @PostMapping("/transfer")
     public TransferDetailResponse transfer(Authentication auth, @Valid @RequestBody TransferRequest req) {
-        WalletTransfer t = transferService.transfer(userId(auth), req.toUserId(), req.currency(),
-            req.amount(), req.payPin(), req.memo(), req.clientOrderId());
-        return TransferDetailResponse.from(t);
+        // Reject before charging: old clients cannot deliver financial cards anymore.
+        throw WalletExceptions.of(HttpStatus.UPGRADE_REQUIRED, "WALLET_SERVER_CARD_REQUIRED");
     }
 
     @PostMapping("/red-packet/send")
     public WalletRedPacket sendRedPacket(Authentication auth, @Valid @RequestBody RedPacketSendRequest req) {
-        String senderUserId = userId(auth);
-        int count = req.packetCount() == null ? 1 : req.packetCount();
-        long total = req.totalAmount() == null ? 0 : req.totalAmount();
-        log.info("red packet send requested sender={} type={} conversationType={} groupId={} toUserId={} currency={} total={} count={} hasClientPacketId={}",
-            senderUserId, req.packetType(), req.conversationType(), req.groupId(), req.toUserId(),
-            req.currency(), total, count, req.clientPacketId() != null && !req.clientPacketId().isBlank());
-        try {
-            return redPacketService.send(senderUserId, req.packetType(), req.conversationType(),
-                req.groupId(), req.toUserId(), req.currency(), total, req.perAmount(), count,
-                req.greeting(), req.payPin(), req.clientPacketId());
-        } catch (RuntimeException ex) {
-            log.warn("red packet send rejected sender={} type={} conversationType={} groupId={} toUserId={} code={} message={}",
-                senderUserId, req.packetType(), req.conversationType(), req.groupId(), req.toUserId(),
-                ex instanceof ResponseStatusException status ? status.getReason() : ex.getClass().getSimpleName(),
-                ex.getMessage());
-            throw ex;
-        }
+        throw WalletExceptions.of(HttpStatus.UPGRADE_REQUIRED, "WALLET_SERVER_CARD_REQUIRED");
     }
 
     @PostMapping("/red-packet/{id}/claim")

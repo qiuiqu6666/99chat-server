@@ -39,6 +39,10 @@ public class ImAdminClient {
         .writeTimeout(15, TimeUnit.SECONDS)
         .build();
     private final ObjectMapper json = new ObjectMapper();
+    // A wallet lease lasts 90s. Bound the entire request and disable hidden HTTP
+    // retries: C2C REST does not promise deduplication across separate seconds.
+    private final OkHttpClient walletHttp = http.newBuilder()
+        .callTimeout(45, TimeUnit.SECONDS).retryOnConnectionFailure(false).build();
     private final Random rng = new Random();
 
     public ImAdminClient(AppSettingService settings, ImProperties props, ImGroupRoleCache roleCache) {
@@ -867,6 +871,121 @@ public class ImAdminClient {
     }
 
     public record NativeVideoSendResult(boolean accepted, String msgKey, Long msgSeq, int errorCode) {}
+
+    /** Persisted wallet outbox only. Keep AfterSend callbacks for receipts, archive and push. */
+    public NativeVideoSendResult sendWalletCard(boolean group, String from, String target,
+                                               int random, long timestamp, String payload) {
+        if (api == null) throw new WalletCardNotSubmittedException("IM_NOT_CONFIGURED");
+        Map<String, Object> body = walletCardBody(group, from, target, random, timestamp, payload);
+        String path = group ? "group_open_http_svc/send_group_msg" : "openim/sendmsg";
+        Map<?, ?> raw;
+        try {
+            Request request = new Request.Builder().url(buildUrl(path))
+                .post(RequestBody.create(json.writeValueAsString(body), JSON)).build();
+            try (Response response = walletHttp.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null)
+                    throw new ImRestException("IM_RESULT_UNKNOWN", 0);
+                raw = json.readValue(response.body().string(), Map.class);
+            }
+        } catch (IOException e) { throw new ImRestException("IM_RESULT_UNKNOWN", 0); }
+        if (raw == null || !(raw.get("ErrorCode") instanceof Number code))
+            throw new ImRestException("IM_RESULT_UNKNOWN", 0);
+        int error = code.intValue();
+        if (error != 0) throw new ImRestException("IM_REJECTED", error);
+        return new NativeVideoSendResult(true,
+            raw.get("MsgKey") == null ? null : raw.get("MsgKey").toString(),
+            raw.get("MsgSeq") instanceof Number seq ? seq.longValue() : null, error);
+    }
+
+    /** One bounded, strict history request. An unavailable history is never an empty history. */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> walletCardHistory(boolean group, String from, String target,
+                                                long since, String cursor) {
+        if (api == null) throw new WalletCardNotSubmittedException("IM_NOT_CONFIGURED");
+        Map<String, Object> body = new LinkedHashMap<>();
+        if (group) {
+            body.put("GroupId", target); body.put("ReqMsgNumber", 20);
+            body.put("WithRecalledMsg", 1);
+            if (cursor != null && !cursor.isBlank()) body.put("ReqMsgSeq", Long.parseLong(cursor));
+        } else {
+            body.put("Operator_Account", from); body.put("Peer_Account", target);
+            body.put("MaxCnt", 100); body.put("MinTime", Math.max(0, since - 60));
+            body.put("MaxTime", Math.min(System.currentTimeMillis() / 1000, since + 600));
+            if (cursor != null && !cursor.isBlank()) {
+                String[] parts = cursor.split("\\|", 2);
+                if (parts.length != 2) throw new IllegalArgumentException("Invalid wallet history cursor");
+                body.put("MaxTime", Long.parseLong(parts[0])); body.put("LastMsgKey", parts[1]);
+            }
+        }
+        String path = group ? "group_open_http_svc/group_msg_get_simple" : "openim/admin_getroammsg";
+        try {
+            Request request = new Request.Builder().url(buildUrl(path))
+                .post(RequestBody.create(json.writeValueAsString(body), JSON)).build();
+            try (Response response = walletHttp.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null)
+                    throw new ImRestException("WALLET_HISTORY_UNAVAILABLE", 0);
+                Map<String, Object> raw = json.readValue(response.body().string(), Map.class);
+                if (raw == null || !(raw.get("ErrorCode") instanceof Number code))
+                    throw new ImRestException("WALLET_HISTORY_INVALID", 0);
+                if (code.intValue() != 0) throw new ImRestException("WALLET_HISTORY_REJECTED", code.intValue());
+                if (!(raw.get(group ? "RspMsgList" : "MsgList") instanceof java.util.List<?>))
+                    throw new ImRestException("WALLET_HISTORY_INVALID", 0);
+                return raw;
+            }
+        } catch (IOException e) { throw new ImRestException("WALLET_HISTORY_UNAVAILABLE", 0); }
+    }
+
+    /** Replace the original wallet message; never create a second chat bubble. */
+    public void updateWalletCard(boolean group, String from, String target,
+                                 String key, Long seq, String payload) {
+        if (api == null) throw new ImRestException("IM_NOT_CONFIGURED", 0);
+        Map<String, Object> body = walletCardUpdateBody(group, from, target, key, seq, payload);
+        String path = group ? "openim/modify_group_msg" : "openim/modify_c2c_msg";
+        try {
+            Request request = new Request.Builder().url(buildUrl(path))
+                .post(RequestBody.create(json.writeValueAsString(body), JSON)).build();
+            try (Response response = walletHttp.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null)
+                    throw new ImRestException("IM_RESULT_UNKNOWN", 0);
+                Map<?, ?> raw = json.readValue(response.body().string(), Map.class);
+                if (raw == null || !(raw.get("ErrorCode") instanceof Number code))
+                    throw new ImRestException("IM_RESULT_UNKNOWN", 0);
+                if (code.intValue() != 0) throw new ImRestException("IM_REJECTED", code.intValue());
+            }
+        } catch (IOException e) { throw new ImRestException("IM_RESULT_UNKNOWN", 0); }
+    }
+
+    static Map<String, Object> walletCardUpdateBody(boolean group, String from, String target,
+                                                    String key, Long seq, String payload) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        if (group) {
+            if (seq == null || seq <= 0) throw new IllegalArgumentException("Missing group MsgSeq");
+            body.put("GroupId", target); body.put("MsgSeq", seq);
+        } else {
+            if (key == null || key.isBlank()) throw new IllegalArgumentException("Missing C2C MsgKey");
+            body.put("From_Account", from); body.put("To_Account", target); body.put("MsgKey", key);
+        }
+        body.put("MsgBody", List.of(Map.of("MsgType", "TIMCustomElem", "MsgContent",
+            Map.of("Data", payload, "Desc", "钱包消息", "Ext", "wallet_order"))));
+        return body;
+    }
+
+    static Map<String, Object> walletCardBody(boolean group, String from, String target,
+                                             int random, long timestamp, String payload) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("From_Account", from);
+        if (group) { body.put("GroupId", target); body.put("Random", random); }
+        else {
+            body.put("To_Account", target); body.put("SyncOtherMachine", 1);
+            body.put("MsgSeq", random);
+            body.put("MsgRandom", random); body.put("MsgTimeStamp", timestamp);
+        }
+        body.put("ForbidCallbackControl", List.of("ForbidBeforeSendMsgCallback"));
+        disableImOfflinePush(body);
+        body.put("MsgBody", List.of(Map.of("MsgType", "TIMCustomElem", "MsgContent",
+            Map.of("Data", payload, "Desc", "钱包消息", "Ext", "wallet_order"))));
+        return body;
+    }
 
     /**
      * 聊天大视频代发：C2C SyncOtherMachine=1，群聊 From_Account 为业务发送者。
