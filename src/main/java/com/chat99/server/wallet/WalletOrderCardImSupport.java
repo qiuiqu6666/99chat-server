@@ -73,8 +73,10 @@ public final class WalletOrderCardImSupport {
         if (BUSINESS_ID.equalsIgnoreCase(businessId)) {
             return true;
         }
-        String type = normalizeType(data);
-        return type != null && CARD_TYPES.contains(type);
+        // The client recognises either field independently; a benign customType
+        // must not hide a wallet type in the legacy field.
+        return CARD_TYPES.contains(String.valueOf(data.get("customType")).trim().toLowerCase(Locale.ROOT))
+            || CARD_TYPES.contains(String.valueOf(data.get("type")).trim().toLowerCase(Locale.ROOT));
     }
 
     static String normalizeType(Map<String, Object> data) {
