@@ -38,6 +38,10 @@ public class UserConversationNotify {
     @Column(name = "muted", nullable = false)
     private boolean muted;
 
+    /** 腾讯群成员 MsgFlag。空表示旧数据，只看 muted。 */
+    @Column(name = "receive_opt", length = 32)
+    private String receiveOpt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

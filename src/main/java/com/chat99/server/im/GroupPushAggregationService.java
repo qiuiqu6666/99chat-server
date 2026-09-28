@@ -95,15 +95,19 @@ public class GroupPushAggregationService {
             return 0;
         }
         Set<String> muted = conversationNotifyService.findMutedUserIdsForGroup(event.groupId(), memberIds);
+        Set<String> mentionOnly = conversationNotifyService.findMentionOnlyUserIdsForGroup(event.groupId(), memberIds);
         Set<String> focused = pushFocusService.focusedOnGroup(memberIds, event.groupId());
         int aggSeconds = resolveAggSeconds(memberIds.size());
         long flushAtMs = Instant.now().toEpochMilli() + aggSeconds * 1000L;
         List<String> accepted = new ArrayList<>();
         for (String memberId : memberIds) {
-            if (memberId == null || memberId.isBlank()
-                || memberId.equals(event.fromAccount())
-                || muted.contains(memberId.trim())
-                || (focused.contains(memberId.trim()) && !event.mentions(memberId))) {
+            if (memberId == null || memberId.isBlank() || memberId.equals(event.fromAccount())) {
+                continue;
+            }
+            String id = memberId.trim();
+            boolean mentioned = event.mentions(id);
+            if (ConversationNotifyService.suppressGroupPush(muted.contains(id), mentionOnly.contains(id), mentioned)
+                || (focused.contains(id) && !mentioned)) {
                 continue;
             }
             accepted.add(memberId.trim());

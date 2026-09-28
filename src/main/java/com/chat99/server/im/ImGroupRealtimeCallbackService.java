@@ -22,6 +22,7 @@ import com.chat99.server.im.GroupMemberCacheService;
 import com.chat99.server.im.ImAdminClient;
 import com.chat99.server.im.ImCallbackVerifier;
 import com.chat99.server.im.ImPushDedupStore;
+import com.chat99.server.push.ConversationNotifyService;
 import com.chat99.server.push.PushConfigService;
 import com.chat99.server.realtime.GroupRealtimePublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -71,8 +72,9 @@ public class ImGroupRealtimeCallbackService {
     private final ObjectMapper json;
     private final GroupMemberRedisSet memberRedisSet;
     private final GroupMemberSetRepairJob memberRepairJob;
+    private final ConversationNotifyService conversationNotifyService;
 
-    public ImGroupRealtimeCallbackService(PushConfigService pushConfig, AppSettingService settings, ImCallbackVerifier callbackVerifier, ImAdminClient imAdmin, GroupMemberCacheService groupMemberCache, GroupRealtimePublisher groupRealtime, GroupChangeEmitter groupChangeEmitter, ImPushDedupStore dedupStore, GroupProjectionService groupProjection, GroupSystemNoticeService systemNoticeService, ImUserIdService imUserIdService, GroupImSyncService groupImSyncService, ObjectMapper json, GroupMemberRedisSet memberRedisSet, GroupMemberSetRepairJob memberRepairJob) {
+    public ImGroupRealtimeCallbackService(PushConfigService pushConfig, AppSettingService settings, ImCallbackVerifier callbackVerifier, ImAdminClient imAdmin, GroupMemberCacheService groupMemberCache, GroupRealtimePublisher groupRealtime, GroupChangeEmitter groupChangeEmitter, ImPushDedupStore dedupStore, GroupProjectionService groupProjection, GroupSystemNoticeService systemNoticeService, ImUserIdService imUserIdService, GroupImSyncService groupImSyncService, ObjectMapper json, GroupMemberRedisSet memberRedisSet, GroupMemberSetRepairJob memberRepairJob, ConversationNotifyService conversationNotifyService) {
         this.pushConfig = pushConfig;
         this.settings = settings;
         this.callbackVerifier = callbackVerifier;
@@ -88,6 +90,7 @@ public class ImGroupRealtimeCallbackService {
         this.json = json;
         this.memberRedisSet = memberRedisSet;
         this.memberRepairJob = memberRepairJob;
+        this.conversationNotifyService = conversationNotifyService;
     }
 
     public void handle(String sdkAppId, String command, String callbackToken, String sign, String requestTime, String rawBody) {
@@ -395,6 +398,22 @@ public class ImGroupRealtimeCallbackService {
         String operator = ImGroupRealtimeCallbackService.str(body.get("Operator_Account"));
         Object rawList = body.get("MemberList");
         if (!(rawList instanceof List) || (list = (List)rawList).isEmpty()) {
+            return;
+        }
+        boolean nameCardChanged = false;
+        for (Object item : list) {
+            if (!(item instanceof Map)) continue;
+            Map m = (Map)item;
+            String memberId = ImGroupRealtimeCallbackService.str(m.get("Member_Account"));
+            String msgFlag = ImGroupRealtimeCallbackService.str(m.get("MsgFlag"));
+            if (memberId != null && groupId != null && msgFlag != null) {
+                this.conversationNotifyService.applyGroupReceiveFlag(toBusinessId(memberId), groupId, msgFlag);
+            }
+            if (ImGroupRealtimeCallbackService.str(m.get("NameCard")) != null) {
+                nameCardChanged = true;
+            }
+        }
+        if (!nameCardChanged) {
             return;
         }
         List<String> targets = this.memberTargets(groupId, null);

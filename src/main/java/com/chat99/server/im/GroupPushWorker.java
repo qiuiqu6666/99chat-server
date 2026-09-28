@@ -180,6 +180,7 @@ public class GroupPushWorker {
         Set<String> online = presenceService.likelyOnline(page);
         Set<String> focused = pushFocusService.focusedOnGroup(page, event.groupId());
         Set<String> muted = conversationNotifyService.findMutedUserIdsForGroup(event.groupId(), page);
+        Set<String> mentionOnly = conversationNotifyService.findMentionOnlyUserIdsForGroup(event.groupId(), page);
         Set<String> left = findLeftMembers(event.groupId(), page);
         if (!left.isEmpty()) {
             members.removeAll(event.groupId(), left);
@@ -189,10 +190,14 @@ public class GroupPushWorker {
             if (memberId == null || memberId.isBlank() || memberId.equals(event.fromAccount())) {
                 continue;
             }
-            if (left.contains(memberId) || muted.contains(memberId)) {
+            if (left.contains(memberId)) {
                 continue;
             }
             boolean mentioned = event.mentions(memberId);
+            if (ConversationNotifyService.suppressGroupPush(
+                muted.contains(memberId), mentionOnly.contains(memberId), mentioned)) {
+                continue;
+            }
             if (online.contains(memberId) && !mentioned) {
                 continue;
             }

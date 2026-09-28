@@ -25,5 +25,12 @@ public interface UserConversationNotifyRepository extends JpaRepository<UserConv
                                  @Param("peerId") String peerId,
                                  @Param("userIds") Collection<String> userIds);
 
+    @Query("SELECT n.userId FROM UserConversationNotify n WHERE n.chatType = :chatType AND n.peerId = :peerId "
+        + "AND n.receiveOpt = :receiveOpt AND n.userId IN :userIds")
+    Set<String> findUserIdsByReceiveOpt(@Param("chatType") String chatType,
+                                        @Param("peerId") String peerId,
+                                        @Param("receiveOpt") String receiveOpt,
+                                        @Param("userIds") Collection<String> userIds);
+
     List<UserConversationNotify> findByUserIdAndMutedTrue(String userId);
 }

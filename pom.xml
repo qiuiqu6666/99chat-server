@@ -510,6 +510,13 @@
 										<exclude name="com/chat99/server/ServerApplication*.class"/>
 										<!-- 群消息看板去重 v1 时间桶：本地 ImDashboardStatsCallbackService，勿被 bootstrap 旧 class 覆盖 -->
 										<exclude name="com/chat99/server/im/ImDashboardStatsCallbackService*.class"/>
+										<!-- 群免打扰：成员资料回调写入接收选项，勿被 bootstrap 旧 class 覆盖 -->
+										<exclude name="com/chat99/server/im/ImGroupRealtimeCallbackService*.class"/>
+										<exclude name="com/chat99/server/im/GroupPushWorker*.class"/>
+										<exclude name="com/chat99/server/im/GroupPushAggregationService*.class"/>
+										<exclude name="com/chat99/server/push/ConversationNotifyService*.class"/>
+										<exclude name="com/chat99/server/push/UserConversationNotify.class"/>
+										<exclude name="com/chat99/server/push/UserConversationNotifyRepository*.class"/>
 										<!-- 钱包归集/CatFee/签名由本地源码维护，勿被 bootstrap 旧 class 覆盖 -->
 										<exclude name="com/chat99/server/wallet/CatFeeClient*.class"/>
 										<exclude name="com/chat99/server/wallet/WalletTronPrepService*.class"/>
